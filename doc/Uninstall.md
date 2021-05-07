@@ -1,6 +1,6 @@
 # Uninstalling packages
 
-To uninstall packages, use `sudo shade -u <packag>`.
+To uninstall packages, use `sudo shade -u <package>`.
 
 For example, if you want to uninstall emacs, you would use `sudo shade -u emacs`.
 
