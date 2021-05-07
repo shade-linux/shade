@@ -1,0 +1,14 @@
+# Pre-install
+cd /shade/main/cache
+git clone 'git://git.sv.gnu.org/emacs.git'
+cd 'emacs'
+
+# Build
+./configure --prefix=/shade/etc/
+make
+
+# Install
+make DESTDIR=/shade install
+
+# Post-install
+# echo 'Emacs git has been installed' # Example

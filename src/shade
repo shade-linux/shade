@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+if [[ $EUID -ne 0 ]]; then
+    echo 'Shade must be run as a root user'
+    exit 1
+fi
+
+function help() {
+    echo
+    echo 'Usage: shade [OPTION] [...]'
+    echo
+    echo 'Options:'
+    echo '    -h, --help    Show this text'
+    echo
+}
+
+function setup() {
+    rm -r /shade/main/cache/ > /dev/null 2>&1
+    mkdir /shade/ > /dev/null 2>&1
+    mkdir /shade/etc/ > /dev/null 2>&1
+    mkdir /shade/main/log/ > /dev/null 2>&1
+    mkdir /shade/main/cache/ > /dev/null 2>&1
+    git clone https://github.com/shade-linux/shade-pm/ /shade/main/cache/
+}
+
+function install() {
+    /shade/main/cache/packages/${2}
+}
+
+case "$1" in
+
+    -h) help ;;
+    --help) help ;;
+    
+    -s) setup ;;
+    --setup) setup ;;
+
+    -i) install $@ ;;
+    --install) install $@ ;;
+
+esac
