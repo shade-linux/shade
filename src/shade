@@ -20,7 +20,7 @@ function setup() {
     mkdir /shade/etc/ > /dev/null 2>&1
     mkdir /shade/main/log/ > /dev/null 2>&1
     mkdir /shade/main/cache/ > /dev/null 2>&1
-    git clone https://github.com/shade-linux/shade-pm/ /shade/main/cache/
+    git clone https://github.com/shade-linux/buildscripts/ /shade/main/cache/
 }
 
 function install() {
