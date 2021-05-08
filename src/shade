@@ -27,10 +27,6 @@ function install() {
     /shade/main/cache/packages/${2}
 }
 
-function uninstall() {
-    rm /shade/etc/bin/${2}
-}
-
 case "$1" in
 
     -h) help ;;
@@ -41,8 +37,5 @@ case "$1" in
 
     -i) install $@ ;;
     --install) install $@ ;;
-
-    -u) uninstall $@ ;;
-    --uninstall) uninstall $@ ;;
 
 esac
