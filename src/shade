@@ -15,16 +15,15 @@ function help() {
 }
 
 function setup() {
-    rm -r /shade/main/cache/ > /dev/null 2>&1
-    mkdir /shade/ > /dev/null 2>&1
-    mkdir /shade/etc/ > /dev/null 2>&1
-    mkdir /shade/main/log/ > /dev/null 2>&1
-    mkdir /shade/main/cache/ > /dev/null 2>&1
-    git clone https://github.com/shade-linux/buildscripts/ /shade/main/cache/
+    rm -r /usr/local/shade/cache/ > /dev/null 2>&1
+    mkdir /usr/local/shade/ > /dev/null 2>&1
+    mkdir /usr/local/shade/log/ > /dev/null 2>&1
+    mkdir /usr/local/shade/cache/ > /dev/null 2>&1
+    git clone https://github.com/shade-linux/buildscripts/ /usr/local/shade/cache/
 }
 
 function install() {
-    /shade/main/cache/packages/${2}
+    /usr/local/shade/cache/packages/${2}/package
 }
 
 case "$1" in
