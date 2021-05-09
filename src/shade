@@ -6,12 +6,13 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 function help() {
-    echo
-    echo 'Usage: shade [OPTION] [...]'
-    echo
-    echo 'Options:'
-    echo '    -h, --help    Show this text'
-    echo
+    cat <<EOF
+Usage: shade [OPTION] [...]
+
+Options:
+    -h, --help    Show this text
+EOF
+    
 }
 
 function setup() {
@@ -23,7 +24,9 @@ function setup() {
 }
 
 function install() {
-    /usr/local/shade/cache/packages/${2}/package
+    for pack in ${@:2:9999}; do
+        bash /usr/local/shade/cache/packages/${pack}/package
+    done
 }
 
 case "$1" in
