@@ -1,7 +1,30 @@
 #!/usr/bin/env bash
 
+export normal=$'\e[0m' # normal
+export bold=$(tput bold)
+
+# Normal colours
+export black=$(tput setaf 0) # black
+export red=$(tput setaf 1) # red
+export green=$(tput setaf 2) # green
+export yellow=$(tput setaf 3) # yellow
+export blue=$(tput setaf 4) # blue
+export magenta=$(tput setaf 5) # magenta
+export cyan=$(tput setaf 6) # cyan
+export white=$(tput setaf 7) # white
+
+# Bold colours
+export bold_black="$bold$black" # bold black
+export bold_red="$bold$red" # bold red
+export bold_green="$bold$green" # bold green
+export bold_yellow="$bold$yellow" # bold yellow
+export bold_blue="$bold$blue" # bold blue
+export bold_magenta="$bold$magenta" # bold magenta
+export bold_cyan="$bold$cyan" # bold cyan
+export bold_white="$bold$white" # bold white
+
 if [[ $EUID -ne 0 ]]; then
-    echo 'Shade must be run as a root user'
+    echo "${bold_red}Shade must be run as a root user${normal}"
     exit 1
 fi
 
@@ -16,15 +39,30 @@ EOF
 }
 
 function setup() {
+    echo "${bold_green}Beginning setup${normal}"
+    echo
     rm -r /usr/local/shade/cache/ > /dev/null 2>&1
     mkdir /usr/local/shade/ > /dev/null 2>&1
     mkdir /usr/local/shade/log/ > /dev/null 2>&1
     mkdir /usr/local/shade/cache/ > /dev/null 2>&1
     git clone https://github.com/shade-linux/buildscripts/ /usr/local/shade/cache/
+    echo
+    echo "${bold_green}Setup done${normal}"
 }
 
 function install() {
     for pack in ${@:2:9999}; do
+        read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response
+        response=${response,,}
+        if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
+            if command -v bat &> /dev/null
+            then
+                bat -l sh /usr/local/shade/cache/packages/${pack}/package
+            else
+                less /usr/local/shade/cache/packages/${pack}/package
+            fi
+        fi
+        echo "${bold_green}Installing ${pack}${normal}"
         bash /usr/local/shade/cache/packages/${pack}/package
     done
 }
