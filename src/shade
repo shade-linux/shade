@@ -23,10 +23,13 @@ export bold_magenta="$bold$magenta" # bold magenta
 export bold_cyan="$bold$cyan" # bold cyan
 export bold_white="$bold$white" # bold white
 
-if [[ $EUID -ne 0 ]]; then
-    echo "${bold_red}Shade must be run as a root user${normal}"
-    exit 1
-fi
+function success() {
+    echo "${bold_green}${1}${normal}"
+}
+
+function error() {
+    echo "${bold_red}${1}${normal}"
+}
 
 function help() {
     cat <<EOF
@@ -39,32 +42,46 @@ EOF
 }
 
 function setup() {
-    echo "${bold_green}Beginning setup${normal}"
-    echo
+    if [[ $EUID -ne 0 ]]; then
+        error "Shade must be run as a root user"
+        exit 1
+    fi
+    success "Beginning setup"
     rm -r /usr/local/shade/cache/ > /dev/null 2>&1
     mkdir /usr/local/shade/ > /dev/null 2>&1
     mkdir /usr/local/shade/log/ > /dev/null 2>&1
     mkdir /usr/local/shade/cache/ > /dev/null 2>&1
     git clone https://github.com/shade-linux/buildscripts/ /usr/local/shade/cache/
-    echo
-    echo "${bold_green}Setup done${normal}"
+    success "Setup done!"
 }
 
 function install() {
+    if [[ $EUID -ne 0 ]]; then
+        error "Shade must be run as a root user"
+        exit 1
+    fi
     for pack in ${@:2:9999}; do
         read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
             if command -v bat &> /dev/null
             then
-                bat -l sh /usr/local/shade/cache/packages/${pack}/package
+                bat -l sh --decorations never /usr/local/shade/cache/packages/${pack}/package 2>/dev/null || error "${2} buildscript not found!"
             else
-                less /usr/local/shade/cache/packages/${pack}/package
+                less /usr/local/shade/cache/packages/${pack}/package || error "${2} buildscript not found!"
             fi
         fi
-        echo "${bold_green}Installing ${pack}${normal}"
-        bash /usr/local/shade/cache/packages/${pack}/package
+        success "Installing ${pack}"
+        if ! bash /usr/local/shade/cache/packages/${pack}/package 2>/dev/null; then
+            error "${pack} failed to install!"
+        else
+            success "${pack} installed!"
+        fi
     done
+}
+
+function query() {
+    cat /usr/local/shade/cache/packages/*/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
 }
 
 case "$1" in
@@ -77,5 +94,8 @@ case "$1" in
 
     -i) install $@ ;;
     --install) install $@ ;;
+
+    -q) query $@ ;;
+    --query) query $@ ;;
 
 esac
