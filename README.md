@@ -4,7 +4,7 @@
 
 - Download and move `src/shade` to a directory in your path.
 - Run `shade -s` as a privileged user
-- Add `/usr/local/bin/` to your $PATH
+- Add `/usr/local/shade/bin/` to your $PATH
 
 ## Usage
 
