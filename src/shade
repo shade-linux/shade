@@ -82,7 +82,7 @@ function install() {
     done
 }
 
-function uninstall() {
+function remove() {
     if [[ $EUID -ne 0 ]]; then
         error "Shade must be run as a root user"
         exit 1
@@ -102,6 +102,20 @@ function query() {
     cat /usr/local/shade/cache/packages/*/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
 }
 
+function update() {
+    if [[ $EUID -ne 0 ]]; then
+        error "Shade must be run as a root user"
+        exit 1
+    fi
+    success "Beginning update..."
+    cd /usr/local/shade/cache/
+    if ! git pull; then
+        error "Update failed!"
+    else
+        success "Update completed!"
+    fi
+}
+
 case "$1" in
 
     -h) help ;;
@@ -113,10 +127,13 @@ case "$1" in
     -i) install $@ ;;
     --install) install $@ ;;
 
-    -u) uninstall $@ ;;
-    --uninstall) uninstall $@ ;;
+    -r) remove $@ ;;
+    --remove) remove $@ ;;
 
     -q) query $@ ;;
     --query) query $@ ;;
+
+    -u) update ;;
+    --update) update ;;
 
 esac
