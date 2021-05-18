@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-source /usr/local/shade/etc/config # Source config file
-
 export normal=$'\e[0m' # normal
 export bold=$(tput bold)
 
@@ -54,9 +52,9 @@ function setup() {
     chkroot
     success "Beginning setup"
     mkdir /usr/local/shade/ > /dev/null 2>&1
-    mkdir /usr/local/shade/etc/log/ > /dev/null 2>&1
-    mkdir /usr/local/shade/etc/cache/ > /dev/null 2>&1
-    git clone https://github.com/shade-linux/buildscripts/ /usr/local/shade/etc/
+    mkdir /usr/local/shade/log/ > /dev/null 2>&1
+    mkdir /usr/local/shade/cache/ > /dev/null 2>&1
+    git clone https://github.com/shade-linux/buildscripts/ /usr/local/shade/main/
     success "Setup done!"
 }
 
@@ -68,18 +66,18 @@ function install() {
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
             if command -v bat &> /dev/null
             then
-                bat -l sh --decorations never /usr/local/shade/etc/packages/${pack}/package 2>/dev/null || error "${2} buildscript not found!"
+                bat -l sh --decorations never /usr/local/shade/main/packages/${pack}/package 2>/dev/null || error "${2} buildscript not found!"
             else
-                less /usr/local/shade/etc/packages/${pack}/package || error "${2} buildscript not found!"
+                less /usr/local/shade/packagmain/es/${pack}/package || error "${2} buildscript not found!"
             fi
         fi
-        find /usr/local -name "*" > /usr/local/shade/etc/packages/${pack}/pre-install
+        find /usr/local -name "*" > /usr/local/shade/main/packages/${pack}/pre-install
         success "Installing ${pack}"
-        if ! bash /usr/local/shade/etc/packages/${pack}/package 2>/dev/null; then
+        if ! bash /usr/local/shade/main/packages/${pack}/package 2>/dev/null; then
             error "${pack} failed to install!"
         else
-            find /usr/local -name "*" > /usr/local/shade/etc/packages/${pack}/post-install
-            echo > /usr/local/shade/etc/packages/${pack}/installed
+            find /usr/local -name "*" > /usr/local/shade/main/packages/${pack}/post-install
+            echo > /usr/local/shade/main/packages/${pack}/installed
             success "${pack} installed!"
         fi
     done
@@ -88,25 +86,24 @@ function install() {
 function remove() {
     chkroot
     for pack in ${@:2:9999}; do
-        error "WARNING: THIS FEATURE IS EXPERIMENTAL. PLEASE MAKE A BACKUP OF /usr/local/shade/"
         read -r -p "${bold_green}Uninstall ${pack}? [Y/n] ${normal}" response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            diff /usr/local/shade/etc/packages/${pack}/pre-install /usr/local/shade/etc/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf
-            rm /usr/local/shade/etc/packages/${pack}/installed
+            diff /usr/local/shade/main/packages/${pack}/pre-install /usr/local/shade/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf
+            rm /usr/local/shade/main/packages/${pack}/installed
             success "${pack} uninstalled!"
         fi
     done
 }
 
 function query() {
-    cat /usr/local/shade/etc/packages/*/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
+    cat /usr/local/shade/main/packages/*/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
 }
 
 function update() {
     chkroot
     success "Beginning update..."
-    cd /usr/local/shade/etc/
+    cd /usr/local/shade/main/
     if ! git pull; then
         error "Update failed!"
     else
@@ -116,12 +113,12 @@ function update() {
 
 function upgrade() {
     chkroot
-    for i in $(find /usr/local/shade/etc/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do
-        cd /usr/local/shade/etc/${i}
+    for i in $(find /usr/local/shade/main/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do
+        cd /usr/local/shade/main/${i}
         if ! git pull | grep -q 'Already up to date'; then
             cd ..
             rm -rf ${i}
-            bash /usr/local/shade/etc/packages/${i}/package
+            bash /usr/local/shade/main/packages/${i}/package
         fi
     done
 }
