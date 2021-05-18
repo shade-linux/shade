@@ -58,6 +58,7 @@ function setup() {
     success "Setup done!"
 }
 
+
 function install() {
     chkroot
     for pack in ${@:2:9999}; do
@@ -71,12 +72,13 @@ function install() {
                 less /usr/local/shade/packagmain/es/${pack}/package || error "${2} buildscript not found!"
             fi
         fi
-        find /usr/local -name "*" > /usr/local/shade/main/packages/${pack}/pre-install
+        find /usr/local/shade/ -name "*" > /usr/local/shade/main/packages/${pack}/pre-install
         success "Installing ${pack}"
-        if ! bash /usr/local/shade/main/packages/${pack}/package 2>/dev/null; then
+        rm /usr/local/shade/cache/${pack}
+        if ! bash /usr/local/shade/main/packages/${pack}/package; then
             error "${pack} failed to install!"
         else
-            find /usr/local -name "*" > /usr/local/shade/main/packages/${pack}/post-install
+            find /usr/local/shade -name "*" > /usr/local/shade/main/packages/${pack}/post-install
             echo > /usr/local/shade/main/packages/${pack}/installed
             success "${pack} installed!"
         fi
@@ -133,6 +135,9 @@ case "$1" in
 
     -i) install $@ ;;
     --install) install $@ ;;
+
+    -id) installdeps $@ ;;
+    --installdeps) installdeps $@ ;;
 
     -r) remove $@ ;;
     --remove) remove $@ ;;
