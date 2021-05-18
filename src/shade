@@ -117,6 +117,8 @@ function upgrade() {
     for i in $(find /usr/local/shade/etc/cache/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do
         cd /usr/local/shade/etc/cache/${i}
         if ! git pull | grep -q 'Already up to date'; then
+            cd ..
+            rm ${i}
             bash /usr/local/shade/etc/cache/packages/${i}/package
         fi
     done
