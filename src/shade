@@ -118,7 +118,7 @@ function upgrade() {
         cd /usr/local/shade/etc/cache/${i}
         if ! git pull | grep -q 'Already up to date'; then
             cd ..
-            rm ${i}
+            rm -rf ${i}
             bash /usr/local/shade/etc/cache/packages/${i}/package
         fi
     done
