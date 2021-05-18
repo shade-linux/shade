@@ -136,9 +136,6 @@ case "$1" in
     -i) install $@ ;;
     --install) install $@ ;;
 
-    -id) installdeps $@ ;;
-    --installdeps) installdeps $@ ;;
-
     -r) remove $@ ;;
     --remove) remove $@ ;;
 
