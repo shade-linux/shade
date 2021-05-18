@@ -1,5 +1,5 @@
 # Installing packages
 
-To uninstall packages, use `sudo shade -r <category>/<package>`.
+To uninstall packages, use `sudo shade -r <package>`.
 
-For example, to uninstall Emacs, use `sudo shade -r code/emacs`.
+For example, to uninstall Emacs, use `sudo shade -r emacs`.
