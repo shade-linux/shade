@@ -43,7 +43,13 @@ function help() {
 Usage: shade [OPTION] [...]
 
 Options:
-    -h, --help    Show this text
+    -h, --help      Show this text
+    -s, --setup     Setup package manager
+    -i, --install   Install a package
+    -r, --remove    Remove a package
+    -q, --query     Query packages
+    -u, --update    Update buildscripts
+    -U, --upgrade   Upgrade outdated packages
 EOF
     
 }
@@ -54,6 +60,7 @@ function setup() {
     mkdir /usr/local/shade/ > /dev/null 2>&1
     mkdir /usr/local/shade/log/ > /dev/null 2>&1
     mkdir /usr/local/shade/cache/ > /dev/null 2>&1
+    mkdir /usr/local/shade/bin/ > /dev/null 2>&1
     git clone https://github.com/shade-linux/buildscripts/ /usr/local/shade/main/
     success "Setup done!"
 }
@@ -72,15 +79,19 @@ function install() {
                 less /usr/local/shade/packagmain/es/${pack}/package || error "${2} buildscript not found!"
             fi
         fi
-        find /usr/local/shade/ -name "*" > /usr/local/shade/main/packages/${pack}/pre-install
-        success "Installing ${pack}"
-        rm /usr/local/shade/cache/${pack}
-        if ! bash /usr/local/shade/main/packages/${pack}/package; then
-            error "${pack} failed to install!"
-        else
-            find /usr/local/shade -name "*" > /usr/local/shade/main/packages/${pack}/post-install
-            echo > /usr/local/shade/main/packages/${pack}/installed
-            success "${pack} installed!"
+        read -r -p "${bold_green}Install ${pack}? [Y/n] ${normal}" response
+        response=${response,,}
+        if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
+            find /usr/local/shade -name "*" > /usr/local/shade/main/packages/${pack}/pre-install
+            success "Installing ${pack}"
+            rm /usr/local/shade/cache/${pack} 2>/dev/null
+            if ! bash /usr/local/shade/main/packages/${pack}/package; then
+                error "${pack} failed to install!"
+            else
+                find /usr/local/shade -name "*" > /usr/local/shade/main/packages/${pack}/post-install
+                echo ' ' > /usr/local/shade/main/packages/${pack}/installed
+                success "${pack} installed!"
+            fi
         fi
     done
 }
@@ -99,7 +110,7 @@ function remove() {
 }
 
 function query() {
-    cat /usr/local/shade/main/packages/*/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
+    cat /usr/local/shade/main/packages/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
 }
 
 function update() {
