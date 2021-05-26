@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source /etc/shade/config
+
 export normal=$'\e[0m' # normal
 export bold=$(tput bold)
 
@@ -57,11 +59,11 @@ EOF
 function setup() {
     chkroot
     success "Beginning setup"
-    mkdir /usr/local/shade/ > /dev/null 2>&1
-    mkdir /usr/local/shade/log/ > /dev/null 2>&1
-    mkdir /usr/local/shade/cache/ > /dev/null 2>&1
-    mkdir /usr/local/shade/bin/ > /dev/null 2>&1
-    git clone https://github.com/shade-linux/buildscripts/ /usr/local/shade/main/
+    mkdir ${shade_dir} > /dev/null 2>&1
+    mkdir ${shade_dir}/log/ > /dev/null 2>&1
+    mkdir ${shade_dir}/cache/ > /dev/null 2>&1
+    mkdir ${shade_dir}/bin/ > /dev/null 2>&1
+    git clone ${repo} ${shade_dir}/main/
     success "Setup done!"
 }
 
@@ -72,24 +74,19 @@ function install() {
         read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            if command -v bat &> /dev/null
-            then
-                bat -l sh --decorations never /usr/local/shade/main/packages/${pack}/package 2>/dev/null || error "${2} buildscript not found!"
-            else
-                less /usr/local/shade/packagmain/es/${pack}/package || error "${2} buildscript not found!"
-            fi
+            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || error "${2} buildscript not found!"
         fi
         read -r -p "${bold_green}Install ${pack}? [Y/n] ${normal}" response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            find /usr/local/shade -name "*" > /usr/local/shade/main/packages/${pack}/pre-install
+            find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/pre-install
             success "Installing ${pack}"
-            rm /usr/local/shade/cache/${pack} 2>/dev/null
-            if ! bash /usr/local/shade/main/packages/${pack}/package; then
+            rm ${shade_dir}/cache/${pack} 2>/dev/null
+            if ! bash ${shade_dir}/main/packages/${pack}/package; then
                 error "${pack} failed to install!"
             else
-                find /usr/local/shade -name "*" > /usr/local/shade/main/packages/${pack}/post-install
-                echo ' ' > /usr/local/shade/main/packages/${pack}/installed
+                find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/post-install
+                echo ' ' > ${shade_dir}/main/packages/${pack}/installed
                 success "${pack} installed!"
             fi
         fi
@@ -102,21 +99,21 @@ function remove() {
         read -r -p "${bold_green}Uninstall ${pack}? [Y/n] ${normal}" response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            diff /usr/local/shade/main/packages/${pack}/pre-install /usr/local/shade/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf
-            rm /usr/local/shade/main/packages/${pack}/installed
+            diff ${shade_dir}/main/packages/${pack}/pre-install ${shade_dir}/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf
+            rm ${shade_dir}/main/packages/${pack}/installed
             success "${pack} uninstalled!"
         fi
     done
 }
 
 function query() {
-    cat /usr/local/shade/main/packages/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
+    cat ${shade_dir}/main/packages/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
 }
 
 function update() {
     chkroot
     success "Beginning update..."
-    cd /usr/local/shade/main/
+    cd ${shade_dir}/main/
     if ! git pull; then
         error "Update failed!"
     else
@@ -126,12 +123,12 @@ function update() {
 
 function upgrade() {
     chkroot
-    for i in $(find /usr/local/shade/main/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do
-        cd /usr/local/shade/main/${i}
+    for i in $(find ${shade_dir}/main/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do
+        cd ${shade_dir}/main/${i}
         if ! git pull | grep -q 'Already up to date'; then
             cd ..
             rm -rf ${i}
-            bash /usr/local/shade/main/packages/${i}/package
+            bash ${shade_dir}/main/packages/${i}/package
         fi
     done
 }

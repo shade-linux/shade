@@ -1,0 +1,8 @@
+# Directory for packages. This is mandatory
+shade_dir="/usr/local/shade"
+
+# Used to open buildscripts
+pager="less"
+
+# Buildscript repo. You can change this to your fork
+repo="https://www.github.com/shade-linux/buildscripts"
