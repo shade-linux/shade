@@ -33,6 +33,15 @@ function error() {
     echo "${bold_red}${1}${normal}"
 }
 
+if [[ $OSTYPE = *darwin* ]]; then
+    OS='darwin'
+elif  [[ $OSTYPE = *linux* ]]; then
+    OS='linux'
+else
+    error "Shade only supports Linux and macOS"
+    exit 1
+fi
+
 function chkroot() {
     if [[ $EUID -ne 0 ]]; then
         error "Shade must be run as a root user"
@@ -59,10 +68,13 @@ EOF
 function setup() {
     chkroot
     success "Beginning setup"
-    mkdir ${shade_dir} > /dev/null 2>&1
-    mkdir ${shade_dir}/log/ > /dev/null 2>&1
-    mkdir ${shade_dir}/cache/ > /dev/null 2>&1
-    mkdir ${shade_dir}/bin/ > /dev/null 2>&1
+    mkdir -p ${shade_dir} > /dev/null 2>&1
+    mkdir -p ${shade_dir}/log/ > /dev/null 2>&1
+    mkdir -p ${shade_dir}/cache/ > /dev/null 2>&1
+    mkdir -p ${shade_dir}/bin/ > /dev/null 2>&1
+    mkdir -p ${shade_dir}/include/ > /dev/null 2>&1
+    mkdir -p ${shade_dir}/lib/ > /dev/null 2>&1
+    mkdir -p ${shade_dir}/share/ > /dev/null 2>&1
     git clone ${repo} ${shade_dir}/main/
     success "Setup done!"
 }
@@ -71,10 +83,11 @@ function setup() {
 function install() {
     chkroot
     for pack in ${@:2:9999}; do
+        cat /usr/local/shade/main/packages/${pack} | grep -i $OS >/dev/null || error "Package not available for current platform"; exit 1
         read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || error "${2} buildscript not found!"
+            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || error "${pack} buildscript not found!"
         fi
         read -r -p "${bold_green}Install ${pack}? [Y/n] ${normal}" response
         response=${response,,}
@@ -82,6 +95,7 @@ function install() {
             find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/pre-install
             success "Installing ${pack}"
             rm ${shade_dir}/cache/${pack} 2>/dev/null
+            cd /usr/local/shade/cache/
             if ! bash ${shade_dir}/main/packages/${pack}/package; then
                 error "${pack} failed to install!"
             else
