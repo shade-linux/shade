@@ -16,3 +16,8 @@ A package manager for Linux
 - Use `shade update` to update buildscripts
 - Use `shade upgrade` to update package (works only for cached git repos as of now)
 - Update individual packages with `shade install <package>`
+
+## Contributing and support
+
+If you have a question, you can open an issue or join our [Matrix room](https://matrix.to/#/!seeNYJscvKSNvmTcQE:matrix.org?via=matrix.org).
+If you want to contribute, feel free to fork this repo and create a pull request.
