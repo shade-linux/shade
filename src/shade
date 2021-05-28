@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Yes, this code is extremely messy. It might be some of the hackiest code I've ever written, and I apologize if it makes your eyes bleed
 
 source /etc/shade/config # source config
 
@@ -84,13 +85,13 @@ function install() {
     chkroot # Checks if you're root
     for pack in ${@:2:9999}; do # Splits arguments
 
-        cat /usr/local/shade/main/packages/${pack}/meta | grep -i $OS >/dev/null || error "Package not available for current platform" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
+        cat /usr/local/shade/main/packages/${pack}/meta | grep -i ${OS} >/dev/null || error "Package not available for current platform" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
 
         read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response # Yes/no prompt
         response=${response,,} # Makes your response lowercase
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || error "${pack} buildscript not found!" # If response is yes, attempts to open buildscript
+            ${pager} ${shade_dir}/main/packages/${pack}/package-${OS} 2>/dev/null || error "${pack} buildscript not found!" # If response is yes, attempts to open buildscript
 
         fi
 
@@ -101,7 +102,7 @@ function install() {
             find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/pre-install # Find which files exist, to help with uninstalling
             success "Installing ${pack}"
             cd /usr/local/shade/cache/ # Go to cache directory
-            if ! bash ${shade_dir}/main/packages/${pack}/package 2>/dev/null; then # Run buildscript
+            if ! bash ${shade_dir}/main/packages/${pack}/package-${OS} 2>/dev/null; then # Run buildscript
 
                 error "${pack} failed to install!"
 
@@ -158,7 +159,7 @@ function upgrade() {
 
             cd ..
             rm -rf ${i}
-            bash ${shade_dir}/main/packages/${i}/package # Reinstall, updating the package
+            bash ${shade_dir}/main/packages/${i}/package-${os} # Reinstall, updating the package
 
         fi
 
