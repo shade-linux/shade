@@ -1,49 +1,49 @@
 #!/usr/bin/env bash
 
-source /etc/shade/config
+source /etc/shade/config # source config
 
-export normal=$'\e[0m' # normal
-export bold=$(tput bold)
+export normal=$'\e[0m'   # normal
+export bold=$(tput bold) # bold
 
 # Normal colours
-export black=$(tput setaf 0) # black
-export red=$(tput setaf 1) # red
-export green=$(tput setaf 2) # green
-export yellow=$(tput setaf 3) # yellow
-export blue=$(tput setaf 4) # blue
+export black=$(tput setaf 0)   # black
+export red=$(tput setaf 1)     # red
+export green=$(tput setaf 2)   # green
+export yellow=$(tput setaf 3)  # yellow
+export blue=$(tput setaf 4)    # blue
 export magenta=$(tput setaf 5) # magenta
-export cyan=$(tput setaf 6) # cyan
-export white=$(tput setaf 7) # white
+export cyan=$(tput setaf 6)    # cyan
+export white=$(tput setaf 7)   # white
 
 # Bold colours
-export bold_black="$bold$black" # bold black
-export bold_red="$bold$red" # bold red
-export bold_green="$bold$green" # bold green
-export bold_yellow="$bold$yellow" # bold yellow
-export bold_blue="$bold$blue" # bold blue
+export bold_black="$bold$black"     # bold black
+export bold_red="$bold$red"         # bold red
+export bold_green="$bold$green"     # bold green
+export bold_yellow="$bold$yellow"   # bold yellow
+export bold_blue="$bold$blue"       # bold blue
 export bold_magenta="$bold$magenta" # bold magenta
-export bold_cyan="$bold$cyan" # bold cyan
-export bold_white="$bold$white" # bold white
+export bold_cyan="$bold$cyan"       # bold cyan
+export bold_white="$bold$white"     # bold white
 
 function success() {
-    echo "${bold_green}${1}${normal}"
+    echo "${bold_green}${1}${normal}" # Bold green message
 }
 
 function error() {
-    echo "${bold_red}${1}${normal}"
+    echo "${bold_red}${1}${normal}" # Bold red message
 }
 
-if [[ $OSTYPE = *darwin* ]]; then
+if [[ $OSTYPE = *darwin* ]]; then # macOS
     OS='darwin'
-elif  [[ $OSTYPE = *linux* ]]; then
+elif  [[ $OSTYPE = *linux* ]]; then # Linux
     OS='linux'
 else
-    error "Shade only supports Linux and macOS"
+    error "Shade only supports Linux and macOS" # If you get this, you're not using Linux or macOS
     exit 1
 fi
 
 function chkroot() {
-    if [[ $EUID -ne 0 ]]; then
+    if [[ $EUID -ne 0 ]]; then # This checks if you're a root user
         error "Shade must be run as a root user"
         exit 1
     fi
@@ -66,7 +66,7 @@ EOF
 }
 
 function setup() {
-    chkroot
+    chkroot # Checks if you're root
     success "Beginning setup"
     mkdir -p ${shade_dir} > /dev/null 2>&1
     mkdir -p ${shade_dir}/log/ > /dev/null 2>&1
@@ -75,60 +75,74 @@ function setup() {
     mkdir -p ${shade_dir}/include/ > /dev/null 2>&1
     mkdir -p ${shade_dir}/lib/ > /dev/null 2>&1
     mkdir -p ${shade_dir}/share/ > /dev/null 2>&1
-    git clone ${repo} ${shade_dir}/main/
+    git clone ${repo} ${shade_dir}/main/ # These vars are sourced from /etc/shade/config. By default this is github.com/shade-linux/buildscripts, though you can change this to a fork or to the unstable branch
     success "Setup done!"
 }
 
 
 function install() {
-    chkroot
-    for pack in ${@:2:9999}; do
-        cat /usr/local/shade/main/packages/${pack} | grep -i $OS >/dev/null || error "Package not available for current platform"; exit 1
-        read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response
-        response=${response,,}
+    chkroot # Checks if you're root
+    for pack in ${@:2:9999}; do # Splits arguments
+
+        cat /usr/local/shade/main/packages/${pack}/meta | grep -i $OS >/dev/null || error "Package not available for current platform" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
+
+        read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response # Yes/no prompt
+        response=${response,,} # Makes your response lowercase
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || error "${pack} buildscript not found!"
+
+            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || error "${pack} buildscript not found!" # If response is yes, attempts to open buildscript
+
         fi
-        read -r -p "${bold_green}Install ${pack}? [Y/n] ${normal}" response
-        response=${response,,}
+
+        read -r -p "${bold_green}Install ${pack}? [Y/n] ${normal}" response # Yes/no prompt
+        response=${response,,} # Makes your response lowercase
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/pre-install
+
+            find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/pre-install # Find which files exist, to help with uninstalling
             success "Installing ${pack}"
-            rm ${shade_dir}/cache/${pack} 2>/dev/null
-            cd /usr/local/shade/cache/
-            if ! bash ${shade_dir}/main/packages/${pack}/package; then
+            cd /usr/local/shade/cache/ # Go to cache directory
+            if ! bash ${shade_dir}/main/packages/${pack}/package 2>/dev/null; then # Run buildscript
+
                 error "${pack} failed to install!"
+
             else
-                find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/post-install
-                echo ' ' > ${shade_dir}/main/packages/${pack}/installed
+
+                find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/post-install # Find which files exist now, and compare for uninstalling
+                echo ' ' > ${shade_dir}/main/packages/${pack}/installed # Mark package as installed
                 success "${pack} installed!"
+
             fi
+
         fi
     done
 }
 
-function remove() {
-    chkroot
+function uninstall() {
+    chkroot # Checks if you're root
     for pack in ${@:2:9999}; do
+
         read -r -p "${bold_green}Uninstall ${pack}? [Y/n] ${normal}" response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            diff ${shade_dir}/main/packages/${pack}/pre-install ${shade_dir}/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf
-            rm ${shade_dir}/main/packages/${pack}/installed
+
+            diff ${shade_dir}/main/packages/${pack}/pre-install ${shade_dir}/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf # Diff the state of $shade_dir before and after install
+            rm ${shade_dir}/main/packages/${pack}/installed # Delete the files that were installed
             success "${pack} uninstalled!"
+
         fi
+
     done
 }
 
 function query() {
-    cat ${shade_dir}/main/packages/*${2,,}*/meta 2>/dev/null || error "${2} not found!"
+    grep -il ${2,,} ${shade_dir}/main/packages/*/meta | xargs cat | ack -i --passthru "${2,,}" || error "${2} not found!" # Find all files that contain something, and display them
 }
 
 function update() {
-    chkroot
+    chkroot # Checks if you're root
     success "Beginning update..."
     cd ${shade_dir}/main/
-    if ! git pull; then
+    if ! git pull; then # Checks if git pull showed an error
         error "Update failed!"
     else
         success "Update completed!"
@@ -136,38 +150,35 @@ function update() {
 }
 
 function upgrade() {
-    chkroot
-    for i in $(find ${shade_dir}/main/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do
-        cd ${shade_dir}/main/${i}
-        if ! git pull | grep -q 'Already up to date'; then
+    chkroot # Checks if you're root
+    for i in $(find ${shade_dir}/main/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do # Find which packages are installed
+
+        cd ${shade_dir}/cache/${i} # Go to each installed package folder
+        if ! git pull | grep -q 'Already up to date'; then # Check if up to date or not
+
             cd ..
             rm -rf ${i}
-            bash ${shade_dir}/main/packages/${i}/package
+            bash ${shade_dir}/main/packages/${i}/package # Reinstall, updating the package
+
         fi
+
     done
 }
 
 case "$1" in
 
-    -h) help ;;
-    --help) help ;;
+    help) help ;;
     
-    -s) setup ;;
-    --setup) setup ;;
+    setup) setup ;;
 
-    -i) install $@ ;;
-    --install) install $@ ;;
+    install) install $@ ;;
 
-    -r) remove $@ ;;
-    --remove) remove $@ ;;
+    uninstall) uninstall $@ ;;
 
-    -q) query $@ ;;
-    --query) query $@ ;;
+    query) query $@ ;;
 
-    -u) update ;;
-    --update) update ;;
+    update) update ;;
 
-    -U) upgrade ;;
-    --upgrade) upgrade ;;
+    upgrade) upgrade ;;
 
 esac
