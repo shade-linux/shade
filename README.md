@@ -1,6 +1,6 @@
 # Shade package manager
 
-A package manager for Linux
+A package manager for Linux and macOS
 
 ## Installation
 
