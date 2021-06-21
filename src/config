@@ -1,6 +1,3 @@
-# Directory for packages. This is mandatory
-shade_dir="/usr/local/shade"
-
 # Used to open buildscripts
 pager="less"
 

@@ -2,6 +2,7 @@
 # Yes, this code is extremely messy. It might be some of the hackiest code I've ever written, and I apologize if it makes your eyes bleed
 
 source /etc/shade/config # source config
+shade_dir="/usr/local/shade"
 
 export normal=$'\e[0m'   # normal
 export bold=$(tput bold) # bold
@@ -30,23 +31,34 @@ function success() {
     echo "${bold_green}${1}${normal}" # Bold green message
 }
 
+function info() {
+    echo "${blue}${1}${normal}" # Blue message
+}
+
+function warn() {
+    echo "${bold_yellow}${1}${normal}" # Yellow message
+}
+
 function error() {
     echo "${bold_red}${1}${normal}" # Bold red message
 }
 
-if [[ $OSTYPE = *darwin* ]]; then # macOS
-    OS='darwin'
-elif  [[ $OSTYPE = *linux* ]]; then # Linux
-    OS='linux'
-else
-    error "Shade only supports Linux and macOS" # If you get this, you're not using Linux or macOS
+function fatal_error() {
+    echo "${bold_red}${1}${normal}" # Bold red message
     exit 1
+}
+
+if [[ $OSTYPE = *darwin* ]]; then # macOS
+    OS="Darwin"
+elif  [[ $OSTYPE = *linux* ]]; then # Linux
+    OS="Linux"
+else
+    error "Shade only supports Linux and macOS. Use at your own risk." # If you get this, you're not using Linux or macOS
 fi
 
 function chkroot() {
     if [[ $EUID -ne 0 ]]; then # This checks if you're a root user
-        error "Shade must be run as a root user"
-        exit 1
+        fatal_error "Shade must be run as a root user"
     fi
 }
 
@@ -55,15 +67,13 @@ function help() {
 Usage: shade [OPTION] [...]
 
 Options:
-    -h, --help      Show this text
-    -s, --setup     Setup package manager
-    -i, --install   Install a package
-    -r, --remove    Remove a package
-    -q, --query     Query packages
-    -u, --update    Update buildscripts
-    -U, --upgrade   Upgrade outdated packages
+    help      Show this text
+    setup     Setup package manager
+    install   Install a package
+    remove    Remove a package
+    query     Query packages
+    update    Update buildscripts
 EOF
-    
 }
 
 function setup() {
@@ -85,24 +95,30 @@ function install() {
     chkroot # Checks if you're root
     for pack in ${@:2:9999}; do # Splits arguments
 
-        cat /usr/local/shade/main/packages/${pack}/meta | grep -i ${OS} >/dev/null || error "Package not available for current platform" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
+        ls ${shade_dir}/main/packages/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
 
-        read -r -p "${bold_green}Open ${pack} buildscript? [Y/n] ${normal}" response # Yes/no prompt
+        cat ${shade_dir}/main/packages/${pack}/meta | grep -i ${OS} >/dev/null || warn "Package ${pack} not marked as available for current platform. Proceed with caution" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
+
+        deps=$(cat ${shade_dir}/main/packages/${pack}/meta | grep -i deps | cut -c 7-)
+        info "Dependencies: $deps"
+        info "Please make sure these are installed"
+
+        read -r -p "Open ${pack} buildscript? [Y/n] " response # Yes/no prompt
         response=${response,,} # Makes your response lowercase
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-            ${pager} ${shade_dir}/main/packages/${pack}/package-${OS} 2>/dev/null || error "${pack} buildscript not found!" # If response is yes, attempts to open buildscript
+            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || fatal_error "Package ${pack} buildscript not found!" # If response is yes, attempts to open buildscript
 
         fi
 
-        read -r -p "${bold_green}Install ${pack}? [Y/n] ${normal}" response # Yes/no prompt
+        read -r -p "Install ${pack}? [Y/n] " response # Yes/no prompt
         response=${response,,} # Makes your response lowercase
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
             find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/pre-install # Find which files exist, to help with uninstalling
-            success "Installing ${pack}"
-            cd /usr/local/shade/cache/ # Go to cache directory
-            if ! bash ${shade_dir}/main/packages/${pack}/package-${OS} 2>/dev/null; then # Run buildscript
+            info "Installing ${pack}"
+            cd ${shade_dir}/cache/ # Go to cache directory
+            if ! bash ${shade_dir}/main/packages/${pack}/package 2>/dev/null; then # Run buildscript
 
                 error "${pack} failed to install!"
 
@@ -120,14 +136,19 @@ function install() {
 
 function uninstall() {
     chkroot # Checks if you're root
+
     for pack in ${@:2:9999}; do
 
-        read -r -p "${bold_green}Uninstall ${pack}? [Y/n] ${normal}" response
+        ls ${shade_dir}/main/packages/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
+        
+        ls ${shade_dir}/main/packages/${pack}/installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
+
+        read -r -p "Uninstall ${pack}? [Y/n] " response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-            diff ${shade_dir}/main/packages/${pack}/pre-install ${shade_dir}/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf # Diff the state of $shade_dir before and after install
-            rm ${shade_dir}/main/packages/${pack}/installed # Delete the files that were installed
+            diff ${shade_dir}/main/packages/${pack}/pre-install ${shade_dir}/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf # Diff the state of $shade_dir before and after install, and delete the resulting files
+            rm ${shade_dir}/main/packages/${pack}/installed # Remove file indicating file was installed
             success "${pack} uninstalled!"
 
         fi
@@ -136,7 +157,7 @@ function uninstall() {
 }
 
 function query() {
-    grep -il ${2,,} ${shade_dir}/main/packages/*/meta | xargs cat | ack -i --passthru "${2,,}" || error "${2} not found!" # Find all files that contain something, and display them
+    grep -il ${2,,} ${shade_dir}/main/packages/*/meta | xargs cat | ack -i --passthru "${2,,}" || fatal_error "${2} not found!" # Find all files that contain something, and display them
 }
 
 function update() {
@@ -150,24 +171,10 @@ function update() {
     fi
 }
 
-function upgrade() {
-    chkroot # Checks if you're root
-    for i in $(find ${shade_dir}/main/packages -iname 'installed' -exec dirname {} \; | sed -e 's/\/.*\///g'); do # Find which packages are installed
-
-        cd ${shade_dir}/cache/${i} # Go to each installed package folder
-        if ! git pull | grep -q 'Already up to date'; then # Check if up to date or not
-
-            cd ..
-            rm -rf ${i}
-            bash ${shade_dir}/main/packages/${i}/package-${os} # Reinstall, updating the package
-
-        fi
-
-    done
-}
-
 case "$1" in
 
+    '') help ;;
+    
     help) help ;;
     
     setup) setup ;;
@@ -180,6 +187,6 @@ case "$1" in
 
     update) update ;;
 
-    upgrade) upgrade ;;
+    *) error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
 
 esac
