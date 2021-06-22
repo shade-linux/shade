@@ -97,9 +97,9 @@ function install() {
 
         ls ${shade_dir}/main/packages/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
 
-        cat ${shade_dir}/main/packages/${pack}/meta | grep -i ${OS} >/dev/null || warn "Package ${pack} not marked as available for current platform. Proceed with caution" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
+        cat ${shade_dir}/main/packages/${pack}/meta | grep -i "^OS: .*${OS}" >/dev/null || warn "Package ${pack} not marked as available for current platform. Proceed with caution" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
 
-        deps=$(cat ${shade_dir}/main/packages/${pack}/meta | grep -i deps | cut -c 7-)
+        deps=$(cat ${shade_dir}/main/packages/${pack}/meta | grep -i "^DEPS:" | cut -c 7-)
         info "Dependencies: $deps"
         info "Please make sure these are installed"
 
@@ -157,7 +157,17 @@ function uninstall() {
 }
 
 function query() {
-    grep -il ${2,,} ${shade_dir}/main/packages/*/meta | xargs cat | ack -i --passthru "${2,,}" || fatal_error "${2} not found!" # Find all files that contain something, and display them
+    search=$(find /usr/local/shade/main/packages/*/meta -type f -exec grep -li "${2}" {} \;)
+    for i in ${search}; do
+        
+        name=$(cat ${i} | grep -i "^NAME:" | cut -c 7-)
+        pkg=$(cat ${i} | grep -i "^PKG:" | cut -c 6-)
+        desc=$(cat ${i} | grep -i "^DESC:" | cut -c 7-)
+        deps=$(cat ${i} | grep -i "^DEPS:" | cut -c 7-)
+        echo -e "Name: $name\nPackage name: $pkg\nDescription: $desc\nDependencies: $deps" | ack -i --passthru "${2,,}"
+        echo
+
+    done
 }
 
 function update() {
