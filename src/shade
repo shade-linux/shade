@@ -91,7 +91,6 @@ function setup() {
     mkdir -p ${shade_dir}/lib/ > /dev/null 2>&1
     mkdir -p ${shade_dir}/share/ > /dev/null 2>&1
     mkdir -p /etc/shade > /dev/null 2>&1
-    cp ./config /etc/shade/config
     git clone ${repo} ${shade_dir}/main/ # These vars are sourced from /etc/shade/config. By default this is github.com/shade-linux/buildscripts, though you can change this to a fork or to the unstable branch
     success "Setup done!"
 }

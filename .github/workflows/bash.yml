@@ -17,4 +17,5 @@ jobs:
       - name: Install bash
         run: |
           sudo ./src/shade setup
+          sudo cp ./src/config /etc/shade/
           yes | sudo ./src/shade install bash
