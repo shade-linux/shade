@@ -62,6 +62,10 @@ function chkroot() {
     fi
 }
 
+function getinfo() {
+    cat ${shade_dir}/main/packages/${pack} | grep -i "^${1}"
+}
+
 function help() {
     cat <<EOF
 Usage: shade [OPTION] [...]
@@ -97,9 +101,9 @@ function install() {
 
         ls ${shade_dir}/main/packages/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
 
-        cat ${shade_dir}/main/packages/${pack}/meta | grep -i "^OS: .*${OS}" >/dev/null || warn "Package ${pack} not marked as available for current platform. Proceed with caution" # Checks if package is available for your current platform. You can comment this out, but some packages may not work
+        getinfo "OS" | grep -i ${OS} >/dev/null || warn "Package ${pack} not marked as available for current platform. Proceed with caution" # Checks if package is available for your current platform
 
-        deps=$(cat ${shade_dir}/main/packages/${pack}/meta | grep -i "^DEPS:" | cut -c 7-)
+        deps=$(getinfo "DEPS" | cut -c 7- | xargs)
         info "Dependencies: $deps"
         info "Please make sure these are installed"
 
@@ -107,48 +111,80 @@ function install() {
         response=${response,,} # Makes your response lowercase
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-            ${pager} ${shade_dir}/main/packages/${pack}/package 2>/dev/null || fatal_error "Package ${pack} buildscript not found!" # If response is yes, attempts to open buildscript
+            ${pager} ${shade_dir}/main/packages/${pack} 2>/dev/null || fatal_error "Package ${pack} buildscript not found!" # If response is yes, attempts to open buildscript
 
         fi
 
         read -r -p "Install ${pack}? [Y/n] " response # Yes/no prompt
         response=${response,,} # Makes your response lowercase
+        
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-            find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/pre-install # Find which files exist, to help with uninstalling
+            find ${shade_dir} -name "*" > ${shade_dir}/main/${pack}-pre-install # Find which files exist, to help with uninstalling
             info "Installing ${pack}"
             cd ${shade_dir}/cache/ # Go to cache directory
-            if ! bash ${shade_dir}/main/packages/${pack}/package 2>/dev/null; then # Run buildscript
 
-                error "${pack} failed to install!"
+            type=$(getinfo "TYPE"  | cut -c 7- | xargs)
 
+            cat ${shade_dir}/main/packages/${pack} | grep -i SOURCE- > /dev/null
+
+            if [ $? = "0" ]; then
+                source=$(getinfo "    SOURCE-${OS}" | cut -d':' -f2- | xargs)
             else
-
-                find ${shade_dir} -name "*" > ${shade_dir}/main/packages/${pack}/post-install # Find which files exist now, and compare for uninstalling
-                echo ' ' > ${shade_dir}/main/packages/${pack}/installed # Mark package as installed
-                success "${pack} installed!"
-
+                source=$(getinfo "SOURCE" | cut -c 8- | xargs)
             fi
 
+            cat ${shade_dir}/main/packages/${pack} | grep -i COMMANDS- > /dev/null
+
+            if [ $? = "0" ]; then
+                commands=$(getinfo "    COMMANDS-${OS}" | cut -d':' -f2- | xargs)
+            else
+                commands=$(getinfo "COMMANDS" | cut -c 10- | xargs)
+            fi
+
+            if [ ${type} = "git" ]; then
+                git clone ${source} ${pack}
+                eval ${commands}
+            elif [ ${type} = "direct" ]; then
+                wget ${source} -O ${pack}
+                eval ${commands}
+            else
+                warn "Package type not recognized, defaulting to wget"
+                wget ${source} -O ${pack}
+                eval ${commands}
+            fi
+
+            if [ $? = "0" ]; then
+                find ${shade_dir} -name "*" > ${shade_dir}/main/${pack}-post-install # Find which files exist, to help with uninstalling
+                touch ${shade_dir}/main/${pack}-installed
+                success "${pack} installed!"
+            else
+                error "${pack} failed to install"
+            fi
+
+        else
+            warn "Skipping ${pack}"
         fi
+
     done
+                
 }
 
 function uninstall() {
-    chkroot # Checks if you're root
+    chkroot
 
     for pack in ${@:2:9999}; do
 
         ls ${shade_dir}/main/packages/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
         
-        ls ${shade_dir}/main/packages/${pack}/installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
+        ls ${shade_dir}/main/${pack}-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
 
         read -r -p "Uninstall ${pack}? [Y/n] " response
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-            diff ${shade_dir}/main/packages/${pack}/pre-install ${shade_dir}/main/packages/${pack}/post-install | tail -n +2 | cut -c 3- | xargs rm -rf # Diff the state of $shade_dir before and after install, and delete the resulting files
-            rm ${shade_dir}/main/packages/${pack}/installed # Remove file indicating file was installed
+            diff ${shade_dir}/main/${pack}-pre-install ${shade_dir}/main/${pack}-post-install | tail -n +2 | cut -c 3- | xargs rm -rf # Diff the state of $shade_dir before and after install, and delete the resulting files
+            rm ${shade_dir}/main/${pack}-installed # Remove file indicating file was installed
             success "${pack} uninstalled!"
 
         fi
@@ -157,14 +193,17 @@ function uninstall() {
 }
 
 function query() {
-    search=$(find /usr/local/shade/main/packages/*/meta -type f -exec grep -li "${2}" {} \;)
+    search=$(find /usr/local/shade/main/packages/* -type f -exec grep -li "${2}" {} \;)
     for i in ${search}; do
         
-        name=$(cat ${i} | grep -i "^NAME:" | cut -c 7-)
-        pkg=$(cat ${i} | grep -i "^PKG:" | cut -c 6-)
-        desc=$(cat ${i} | grep -i "^DESC:" | cut -c 7-)
-        deps=$(cat ${i} | grep -i "^DEPS:" | cut -c 7-)
-        echo -e "Name: $name\nPackage name: $pkg\nDescription: $desc\nDependencies: $deps" | ack -i --passthru "${2,,}"
+        name=$(cat ${i} | grep -i "^NAME:" | cut -c 7- | xargs)
+        pkg=$(cat ${i} | grep -i "^PKGNAME:" | cut -c 10- | xargs)
+        desc=$(cat ${i} | grep -i "^DESC:" | cut -c 7- | xargs)
+        deps=$(cat ${i} | grep -i "^DEPS:" | cut -c 7- | xargs)
+        os=$(cat ${i} | grep -i "^OS:" | cut -c 5- | xargs)
+        version=$(cat ${i} | grep -i "^VERSION:" | cut -c 10- | xargs)
+
+        echo -e "${blue}Name:${normal} $name\n${blue}Package name:${normal} $pkg\n${blue}Description:${normal} $desc\n${blue}Dependencies:${normal} $deps\n${blue}OS:${normal} $os\n${blue}Version:${normal} $version" | ack -i --passthru "${2,,}"
         echo
 
     done
