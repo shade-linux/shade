@@ -100,73 +100,80 @@ function install() {
     chkroot # Checks if you're root
     for pack in ${@:2:9999}; do # Splits arguments
 
-        ls ${shade_dir}/main/packages/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
+        ls ${shade_dir}/main/${pack}-installed >/dev/null 2>&1
 
-        getinfo "OS" | grep -i ${OS} >/dev/null || warn "Package ${pack} not marked as available for current platform. Proceed with caution" # Checks if package is available for your current platform
+        if [ $? != "0" ]; then
 
-        deps=$(getinfo "DEPS" | cut -c 7- | xargs)
-        info "Dependencies: $deps"
-        info "Please make sure these are installed"
+            ls ${shade_dir}/main/packages/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
 
-        read -r -p "Open ${pack} buildscript? [Y/n] " response # Yes/no prompt
-        response=${response,,} # Makes your response lowercase
-        if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
+            getinfo "OS" | grep -i ${OS} >/dev/null || warn "Package ${pack} not marked as available for current platform. Proceed with caution" # Checks if package is available for your current platform
 
-            ${pager} ${shade_dir}/main/packages/${pack} 2>/dev/null || fatal_error "Package ${pack} buildscript not found!" # If response is yes, attempts to open buildscript
+            deps=$(getinfo "DEPS" | cut -c 7- | xargs)
+            info "Dependencies: $deps"
+            info "Please make sure these are installed"
 
-        fi
+            read -r -p "Open ${pack} buildscript? [Y/n] " response # Yes/no prompt
+            response=${response,,} # Makes your response lowercase
+            if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-        read -r -p "Install ${pack}? [Y/n] " response # Yes/no prompt
-        response=${response,,} # Makes your response lowercase
-        
-        if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
+                ${pager} ${shade_dir}/main/packages/${pack} 2>/dev/null || fatal_error "Package ${pack} buildscript not found!" # If response is yes, attempts to open buildscript
 
-            find ${shade_dir} -name "*" > ${shade_dir}/main/${pack}-pre-install # Find which files exist, to help with uninstalling
-            info "Installing ${pack}"
-            cd ${shade_dir}/cache/ # Go to cache directory
-
-            type=$(getinfo "TYPE"  | cut -c 7- | xargs)
-
-            cat ${shade_dir}/main/packages/${pack} | grep -i SOURCE- > /dev/null
-
-            if [ $? = "0" ]; then
-                source=$(getinfo "    SOURCE-${OS}" | cut -d':' -f2- | xargs)
-            else
-                source=$(getinfo "SOURCE" | cut -c 8- | xargs)
             fi
 
-            cat ${shade_dir}/main/packages/${pack} | grep -i COMMANDS- > /dev/null
+            read -r -p "Install ${pack}? [Y/n] " response # Yes/no prompt
+            response=${response,,} # Makes your response lowercase
+            
+            if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
-            if [ $? = "0" ]; then
-                commands=$(getinfo "    COMMANDS-${OS}" | cut -d':' -f2- | xargs)
-            else
-                commands=$(getinfo "COMMANDS" | cut -c 10- | xargs)
-            fi
+                find ${shade_dir} -name "*" > ${shade_dir}/main/${pack}-pre-install # Find which files exist, to help with uninstalling
+                info "Installing ${pack}"
+                cd ${shade_dir}/cache/ # Go to cache directory
 
-            if [ ${type} = "git" ]; then
-                git clone ${source} ${pack}
-                eval ${commands}
-            elif [ ${type} = "direct" ]; then
-                wget ${source} -O ${pack}
-                eval ${commands}
-            else
-                warn "Package type not recognized, defaulting to wget"
-                wget ${source} -O ${pack}
-                eval ${commands}
-            fi
+                type=$(getinfo "TYPE"  | cut -c 7- | xargs)
 
-            if [ $? = "0" ]; then
-                find ${shade_dir} -name "*" > ${shade_dir}/main/${pack}-post-install # Find which files exist, to help with uninstalling
-                touch ${shade_dir}/main/${pack}-installed
-                success "${pack} installed!"
+                cat ${shade_dir}/main/packages/${pack} | grep -i SOURCE- > /dev/null
+
+                if [ $? = "0" ]; then
+                    source=$(getinfo "    SOURCE-${OS}" | cut -d':' -f2- | xargs)
+                else
+                    source=$(getinfo "SOURCE" | cut -c 8- | xargs)
+                fi
+
+                cat ${shade_dir}/main/packages/${pack} | grep -i COMMANDS- > /dev/null
+
+                if [ $? = "0" ]; then
+                    commands=$(getinfo "    COMMANDS-${OS}" | cut -d':' -f2- | xargs)
+                else
+                    commands=$(getinfo "COMMANDS" | cut -c 10- | xargs)
+                fi
+
+                if [ ${type} = "git" ]; then
+                    git clone ${source} ${pack}
+                    eval ${commands}
+                elif [ ${type} = "direct" ]; then
+                    wget ${source} -O ${pack}
+                    eval ${commands}
+                else
+                    warn "Package type not recognized, defaulting to wget"
+                    wget ${source} -O ${pack}
+                    eval ${commands}
+                fi
+
+                if [ $? = "0" ]; then
+                    find ${shade_dir} -name "*" > ${shade_dir}/main/${pack}-post-install # Find which files exist, to help with uninstalling
+                    touch ${shade_dir}/main/${pack}-installed
+                    success "${pack} installed!"
+                else
+                    error "${pack} failed to install"
+                fi
+
             else
-                error "${pack} failed to install"
+                warn "Skipping ${pack}"
             fi
 
         else
-            warn "Skipping ${pack}"
+            warn "${pack} already installed, skipping"
         fi
-
     done
                 
 }
@@ -221,6 +228,17 @@ function update() {
     fi
 }
 
+function refresh() {
+    chkroot
+    echo ${packlist} | xargs ./$0 install
+}
+
+function reinstall() {
+    chkroot
+    uninstall $@
+    install $@
+}
+
 case "$1" in
 
     '') help ;;
@@ -236,6 +254,10 @@ case "$1" in
     query) query $@ ;;
 
     update) update ;;
+
+    refresh) refresh ;;
+
+    reinstall) reinstall $@ ;;
 
     *) error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
 
