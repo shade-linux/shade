@@ -71,12 +71,14 @@ function help() {
 Usage: shade [OPTION] [...]
 
 Options:
-    help      Show this text
-    setup     Setup package manager
-    install   Install a package
-    remove    Remove a package
-    query     Query packages
-    update    Update buildscripts
+    help          Show this text
+    setup         Setup package manager
+    install       Install a package
+    reinstall     Reinstall packages
+    uninstall     Remove a package
+    query         Query packages
+    update        Update buildscripts
+    refresh       Install packages specfied in config file
 EOF
 }
 
