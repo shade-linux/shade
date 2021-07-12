@@ -155,7 +155,7 @@ function query() {
 function update() {
     chkroot # Checks if you're root
     success "Beginning update..."
-    cd ${shade_dir}/user/main/
+    cd ${prefix}/user/main/
     if ! git pull; then # Checks if git pull showed an error
         error "Update failed!"
     else
