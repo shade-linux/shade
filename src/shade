@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Yes, this code is extremely messy. It might be some of the hackiest code I've ever written, and I apologize if it makes your eyes bleed
 
-source /etc/shade/config # source config
-shade_dir="/opt/shade"
-package_dir="${shade_dir}/user/main/packages"
+export prefix="/opt/shade"
+export package_dir="${prefix}/user/main/packages"
+export pager=cat
 
 export normal=$'\e[0m'   # normal
 export bold=$(tput bold) # bold
@@ -89,11 +89,10 @@ EOF
 }
 
 function install() {
-    chkroot
     for pack in ${@:2:9999}; do
-        ls ${shade_dir}/user/${pack}-installed >/dev/null 2>&1
+        ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1
         if [ $? != "0" ]; then
-            ls ${package_dir}/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
+            ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
             deps=$(parse "deps")
             info "Dependencies: $deps"
             info "Please make sure these are installed"
@@ -105,25 +104,13 @@ function install() {
             prompt "Install ${pack}?"
             response=${response,,} # Makes your response lowercase
             if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-                find ${shade_dir} -name "*" > ${shade_dir}/user/${pack}-pre-install
+                find ${prefix} -name "*" > ${prefix}/user/info/${pack}-pre-install
                 info "Installing ${pack}"
-                cd ${shade_dir}/user/cache/
-                type=$(parse "type")
-                source=$(parse "source")
-                if [ ${type} = "git" ]; then
-                    git clone ${source} ${pack}
-                    bash ${package_dir}/${pack}
-                elif [ ${type} = "direct" ]; then
-                    wget ${source} -O ${pack}
-                    bash ${package_dir}/${pack}
-                else
-                    warn "Package type not recognized, defaulting to wget"
-                    wget ${source} -O ${pack}
-                    bash ${package_dir}/${pack}
-                fi
+                cd ${prefix}/user/cache/
+                bash ${package_dir}/${pack}
                 if [ $? = "0" ]; then
-                    find ${shade_dir} -name "*" > ${shade_dir}/user/${pack}-post-install # Find which files exist, to help with uninstalling
-                    touch ${shade_dir}/user/${pack}-installed
+                    find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install # Find which files exist, to help with uninstalling
+                    touch ${prefix}/user/info/${pack}-installed
                     success "${pack} installed!"
                 else
                     error "${pack} failed to install"
@@ -131,8 +118,7 @@ function install() {
             else
                 warn "Skipping ${pack}"
             fi
-        else
-            warn "${pack} already installed, skipping"
+        else warn "${pack} already installed, skipping"
         fi
     done
 }
@@ -140,17 +126,17 @@ function install() {
 function uninstall() {
     chkroot
     for pack in ${@:2:9999}; do
-        ls ${package_dir}/${pack} >/dev/null 2>&1 || fatal_error "Package ${pack} does not exist!"
-        ls ${shade_dir}/user/${pack}-installed >/dev/null 2>&1 || fatal_error "Package ${pack} not installed!"
+        ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
+        ls ${prefix}/user/info/${pack}-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
         prompt "Review files to remove?"
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-          diff ${shade_dir}/user/${pack}-pre-install ${shade_dir}/user/${pack}-post-install | tail -n +2 | cut -c 3- | less
+          diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | less
         fi
         prompt "Uninstall ${pack}?"
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            diff ${shade_dir}/user/${pack}-pre-install ${shade_dir}/user/${pack}-post-install | tail -n +2 | cut -c 3- | xargs rm -rf
-            rm ${shade_dir}/user/${pack}-installed ${shade_dir}/user/${pack}-pre-install ${shade_dir}/user/${pack}-post-install
+            diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | xargs rm -rf
+            rm ${prefix}/user/info/${pack}-installed ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install > /dev/null 2>&1
             success "${pack} uninstalled!"
         fi
     done
@@ -184,23 +170,13 @@ function reinstall() {
 }
 
 case "$1" in
-
-    '') help ;;
-    
-    help) help ;;
-    
-    setup) setup ;;
-
-    install) install $@ ;;
-
-    uninstall) uninstall $@ ;;
-
-    query) query $@ ;;
-
-    update) update ;;
-
-    reinstall) reinstall $@ ;;
-
-    *) error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
-
+      '') help ;;
+      'help') help ;;
+      'setup') setup ;;
+      'install') install $@ ;;
+      'uninstall') uninstall $@ ;;
+      'query') query $@ ;;
+      'update') update ;;
+      'reinstall') reinstall $@ ;;
+      '*') error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
 esac

@@ -1,0 +1,22 @@
+function init() {
+  mkdir -p ${prefix}/user/
+  mkdir -p ${prefix}/user/info
+  mkdir -p ${prefix}/user/cache
+  mkdir -p ${prefix}/lib
+  mkdir -p ${prefix}/bin
+  mkdir -p ${prefix}/libexec
+  mkdir -p ${prefix}/sbin
+  mkdir -p ${prefix}/share
+  git clone https://github.com/shade-linux/buildscripts/ ${prefix}/user/main
+}
+
+case "$1" in
+    'global')
+        export prefix=/opt/shade
+        init ;;
+    'local')
+        export prefix=$HOME/.shade
+        init ;;
+     '')
+        echo "Argument global for global install, and local for local (user-only) install"
+esac
