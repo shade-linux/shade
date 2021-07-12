@@ -1,8 +1,0 @@
-# Used to open buildscripts
-pager="cat"
-
-# Buildscript repo. You can change this to your fork
-repo="https://www.github.com/shade-linux/buildscripts"
-
-# List of packages to always install
-packlist="shade vim"
