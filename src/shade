@@ -91,6 +91,7 @@ Options:
 Flags:
     --local       Install package to ~/.shade
     --global      Install package to /opt/shade
+EOF
 }
 
 function init() {
