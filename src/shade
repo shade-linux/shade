@@ -81,13 +81,11 @@ Usage: shade [OPTION] [--local/--global] [...]
 Options:
     help          Show this text
     init          Initialize buildscripts
-    setup         Setup package manager
     install       Install a package
     reinstall     Reinstall packages
     uninstall     Remove a package
     query         Query packages
     update        Update buildscripts
-    refresh       Install packages specfied in config file
 Flags:
     --local       Install package to ~/.shade
     --global      Install package to /opt/shade
