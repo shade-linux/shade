@@ -1,13 +1,21 @@
 # Shade package manager
 
-A package manager for Linux and macOS
+A simple package manager for Linux written in shell
 
 ## Installation
 
 - Download and move `src/shade` to a directory in your path.
-- Move `src/config` to `/etc/shade/config`
-- Run `shade setup` as a privileged user
-- Add `/usr/local/shade/bin/` to your $PATH
+- Run `shade init --local` as a normal user, or `shade init --global` as the root user
+- Add `/opt/shade/bin/` and `~/.shade/bin/` to your $PATH
+
+## Why another package manager?
+
+Shade has a few advantages over other packages managers
+
+- Shade buildscripts are written in shell, so you don't need shade to build packages
+- Shade is written in shell, so it is portable and can run on macOS, BSD, and even WSL (although without support)
+- Shade is also easily extensible, as you can edit it without needing to recompile
+- Shade is fast
 
 ## Usage
 
@@ -15,9 +23,9 @@ A package manager for Linux and macOS
 - Use `shade uninstall <package>` to uninstall packages
 - Use `shade update` to update buildscripts
 - Use `shade upgrade` to update package (works only for cached git repos as of now)
-- Update individual packages with `shade install <package>`
+- Update individual packages with `shade reinstall <package>`
 
 ## Contributing and support
 
-If you have a question, you can open an issue or join our [Matrix room](https://matrix.to/#/!QFHcZFQVmhZjDjYMYR:matrix.org?via=matrix.org).
+If you have a question, you can open an issue, join our [Matrix room](https://matrix.to/#/!QFHcZFQVmhZjDjYMYR:matrix.org?via=matrix.org), or ask in Github Discussions.
 If you want to contribute, feel free to fork this repo and create a pull request.
