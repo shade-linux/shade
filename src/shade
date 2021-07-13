@@ -98,6 +98,7 @@ Options:
     reinstall     Reinstall packages
     uninstall     Remove a package
     query         Query packages
+    list          List all installed packages
     update        Update buildscripts
 Flags:
     --local       Install package to ~/.shade
@@ -215,6 +216,12 @@ function reinstall() {
     install $@
 }
 
+# This function lists installed packages
+function list() {
+    info "Installed packages:"
+    ls ${prefix}/user/info/*-installed | sed 's/-.*//g' | sed 's/\/.*\///g'
+}
+
 # This checks if user wants a local or global install
 for i in $@; do
     case $i in
@@ -236,5 +243,6 @@ case "$1" in
       'query') query $@ ;;
       'update') update ;;
       'reinstall') reinstall $@ ;;
+      'list') list ;;
       '*') error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
 esac
