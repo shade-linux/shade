@@ -76,10 +76,11 @@ fi
 
 function help() {
     cat <<EOF
-Usage: shade [OPTION] [...]
+Usage: shade [OPTION] [--local/--global] [...]
 
 Options:
     help          Show this text
+    init          Initialize buildscripts
     setup         Setup package manager
     install       Install a package
     reinstall     Reinstall packages
@@ -87,7 +88,9 @@ Options:
     query         Query packages
     update        Update buildscripts
     refresh       Install packages specfied in config file
-EOF
+Flags:
+    --local       Install package to ~/.shade
+    --global      Install package to /opt/shade
 }
 
 function init() {
