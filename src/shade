@@ -50,8 +50,10 @@ function fatal_error() {
 }
 
 function chkroot() {
-    if [[ $EUID -ne 0 ]]; then
-        fatal_error "Shade must be run as a root user"
+    if [[ $prefix = /opt/shade ]]; then
+        if [[ $EUID -ne 0 ]]; then
+            fatal_error "Shade must be run as a root user"
+        fi
     fi
 }
 
@@ -89,6 +91,7 @@ EOF
 }
 
 function install() {
+    chkroot
     args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g')
     for pack in ${args}; do
         ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1
@@ -125,6 +128,7 @@ function install() {
 }
 
 function uninstall() {
+    chkroot
     args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g')
     for pack in ${args}; do
         ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
@@ -154,6 +158,7 @@ function query() {
 }
 
 function update() {
+    chkroot
     success "Beginning update..."
     cd ${prefix}/user/main/
     if ! git pull; then # Checks if git pull showed an error
