@@ -2,7 +2,7 @@
 # Yes, this code is extremely messy. It might be some of the hackiest code I've ever written, and I apologize if it makes your eyes bleed
 
 export prefix="/opt/shade"
-export package_dir="${prefix}/user/main/packages"
+export package_dir="${prefix}/user/main/"
 export pager=cat
 
 export normal=$'\e[0m'   # normal
@@ -50,7 +50,7 @@ function fatal_error() {
 }
 
 function chkroot() {
-    if [[ $prefix = /opt/shade ]]; then
+    if [[ $prefix == /opt/shade ]]; then
         if [[ $EUID -ne 0 ]]; then
             fatal_error "Shade must be run as a root user"
         fi
@@ -90,8 +90,30 @@ Options:
 EOF
 }
 
+function init() {
+  info "Beginning initialization"
+  mkdir -p ${prefix}/user/
+  mkdir -p ${prefix}/user/main
+  mkdir -p ${prefix}/user/info
+  mkdir -p ${prefix}/user/cache
+  mkdir -p ${prefix}/lib
+  mkdir -p ${prefix}/bin
+  mkdir -p ${prefix}/libexec
+  mkdir -p ${prefix}/sbin
+  mkdir -p ${prefix}/share
+  echo 'https://github.com/shade-linux/buildscripts' >> ${prefix}/repos
+  for i in $(cat ${prefix}/repos); do
+    git clone $i ${prefix}/user/main/repo
+    mv ${prefix}/user/main/repo/packages/* ${prefix}/user/main/
+    rm -rf ${prefix}/user/main/repo/
+ done
+ success "Initialization done"
+ info "Add your own repos to ${prefix}/repos and run shade update [--local] to clone them"
+}
+
 function install() {
     chkroot
+    export package_dir="${prefix}/user/main/"
     args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g')
     for pack in ${args}; do
         ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1
@@ -129,7 +151,8 @@ function install() {
 
 function uninstall() {
     chkroot
-    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g')
+    export package_dir="${prefix}/user/main/"
+    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/uninstall//g')
     for pack in ${args}; do
         ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
         ls ${prefix}/user/info/${pack}-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
@@ -159,13 +182,13 @@ function query() {
 
 function update() {
     chkroot
-    success "Beginning update..."
-    cd ${prefix}/user/main/
-    if ! git pull; then # Checks if git pull showed an error
-        error "Update failed!"
-    else
-        success "Update completed!"
-    fi
+    rm -rf ${prefix}/user/main
+    mkdir ${prefix}/user/main
+    for i in $(cat ${prefix}/repos); do
+      git clone $i ${prefix}/user/main/repo
+      mv ${prefix}/user/main/repo/packages/* ${prefix}/user/main/
+      rm -rf ${prefix}/user/main/repo/
+    done
 }
 
 function reinstall() {
@@ -176,7 +199,7 @@ function reinstall() {
 for i in $@; do
     case $i in
       '--local') 
-	prefix=~/.shade ;;
+	prefix=$HOME/.shade ;;
       '--global') 
 	prefix=/opt/shade ;;
     esac
@@ -185,6 +208,7 @@ done
 case "$1" in
       '') help ;;
       'help') help ;;
+      'init') init ;;
       'setup') setup ;;
       'install') install $@ ;;
       'uninstall') uninstall $@ ;;
