@@ -1,54 +1,63 @@
 #!/usr/bin/env bash
 # Yes, this code is extremely messy. It might be some of the hackiest code I've ever written, and I apologize if it makes your eyes bleed
 
+# This sets the default prefix and package directory. This can be changed later with --local
 export prefix="/opt/shade"
 export package_dir="${prefix}/user/main/"
+# Pager will be able to be specified in a config file in a future update
 export pager=cat
 
-export normal=$'\e[0m'   # normal
-export bold=$(tput bold) # bold
+# Font coloring
+export normal=$'\e[0m' # Normal text
+export bold=$(tput bold) # Bold text
 
 # Normal colours
-export black=$(tput setaf 0)   # black
-export red=$(tput setaf 1)     # red
-export green=$(tput setaf 2)   # green
-export yellow=$(tput setaf 3)  # yellow
-export blue=$(tput setaf 4)    # blue
-export magenta=$(tput setaf 5) # magenta
-export cyan=$(tput setaf 6)    # cyan
-export white=$(tput setaf 7)   # white
+export black=$(tput setaf 0) # Black
+export red=$(tput setaf 1) # Red
+export green=$(tput setaf 2) # Green
+export yellow=$(tput setaf 3) # Yellow
+export blue=$(tput setaf 4) # Blue
+export magenta=$(tput setaf 5) # Magenta
+export cyan=$(tput setaf 6) # Cyan
+export white=$(tput setaf 7) # White
 
 # Bold colours
-export bold_black="$bold$black"     # bold black
-export bold_red="$bold$red"         # bold red
-export bold_green="$bold$green"     # bold green
-export bold_yellow="$bold$yellow"   # bold yellow
-export bold_blue="$bold$blue"       # bold blue
-export bold_magenta="$bold$magenta" # bold magenta
-export bold_cyan="$bold$cyan"       # bold cyan
-export bold_white="$bold$white"    # bold white
+export bold_black="$bold$black" # Bold black
+export bold_red="$bold$red" # Bold red
+export bold_green="$bold$green" # Bold green
+export bold_yellow="$bold$yellow" # Bold yellow
+export bold_blue="$bold$blue" # Bold blue
+export bold_magenta="$bold$magenta" # Bold magenta
+export bold_cyan="$bold$cyan" # Bold cyan
+export bold_white="$bold$white" # Bold white
 
+# Bold green message for success
 function success() {
-    echo "${bold_green}${1}${normal}" # Bold green message
+    echo "${bold_green}${1}${normal}"
 }
 
+# Blue message for information
 function info() {
-    echo "${blue}${1}${normal}" # Blue message
+    echo "${blue}${1}${normal}"
 }
 
+# Bold yellow message for warnings
 function warn() {
-    echo "${bold_yellow}${1}${normal}" # Yellow message
+    echo "${bold_yellow}${1}${normal}"
 }
 
+# Bold red message for errors
 function error() {
-    echo "${bold_red}${1}${normal}" # Bold red message
+    echo "${bold_red}${1}${normal}"
 }
 
+# Bold red message and quiting for errors
 function fatal_error() {
-    echo "${bold_red}${1}${normal}" # Bold red message
+    echo "${bold_red}${1}${normal}"
     exit 1
 }
 
+# Checks to see if you are running as root only if you want to install globally
 function chkroot() {
     if [[ $prefix == /opt/shade ]]; then
         if [[ $EUID -ne 0 ]]; then
@@ -57,23 +66,27 @@ function chkroot() {
     fi
 }
 
+# Searches for metadata inside a buildscript. Metadata always starts with a #
 function getinfo() {
-    cat ${package_dir}/${pack} | grep -i "^\# ${query}"
+    cat ${package_dir}/${pack} | grep -i "^\# ${1}"
 }
 
+# Seperate information from identifier in buildscripts
 function parse() {
-  query=$1
-  getinfo $query | sed "s/^..$query..//"
+  getinfo $1 | sed "s/^..$1..//"
 }
 
+# Colored yes/no prompt
 function prompt() {
     read -rp "$1 [${green}Yes${normal}/${red}No${normal}] " response
 }
 
-if [[ $OSTYPE != *linux* ]] && [[ $OSTYPE != *darwin* ]]; then
-    warn "Shade only supports Linux, with partial support for macOS. Issues for operating systems other than Linux will most likely be ignored"
+# Check if you are running Linux, and if not, spits out a warning message
+if [[ $OSTYPE != *linux* ]]; then
+    warn "Shade officially supports only Linux. Other operating systems may run shade, but issues may arise."
 fi
 
+# Help function to print out usage
 function help() {
     cat <<EOF
 Usage: shade [OPTION] [--local/--global] [...]
@@ -92,6 +105,7 @@ Flags:
 EOF
 }
 
+# This function creates directories, clones repositories to the needed locations, then moves the buildscripts to ${prefix}/user/main
 function init() {
   info "Beginning initialization"
   mkdir -p ${prefix}/user/
@@ -113,67 +127,68 @@ function init() {
  info "Add your own repos to ${prefix}/repos and run shade update [--local] to clone them"
 }
 
+# This function installs packages. It's not that complicated
 function install() {
     chkroot
-    export package_dir="${prefix}/user/main/"
-    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g')
-    for pack in ${args}; do
-        ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1
+    export package_dir="${prefix}/user/main/" # You need to export this variable again
+    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g') # Set arguments to the current argument list, but without --local, --global, and install arguments
+    for pack in ${args}; do # Repeat this code until all packages are installed
+        ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1 # Check if package is installed
         if [ $? != "0" ]; then
-            ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
-            deps=$(parse "deps")
-            info "Dependencies: $deps"
+            ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!" # Check if package exists
+            deps=$(parse "deps") # Check dependencies
+            info "Dependencies: $deps" # Show dependencies to user
             info "Please make sure these are installed"
-            prompt "Open ${pack} buildscript?"
-            response=${response,,} # Makes your response lowercase
-            if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-                ${pager} ${package_dir}/${pack}
+            prompt "Open ${pack} buildscript?" # Prompt user to open package buildscript
+            response=${response,,} # make response lowercase
+            if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then # Check if the response is yes or empty
+                ${pager} ${package_dir}/${pack} # Read the buildscript with the pager
             fi
-            prompt "Install ${pack}?"
-            response=${response,,} # Makes your response lowercase
+            prompt "Install ${pack}?" # Prompt user if theyy want to install
+            response=${response,,}
             if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-                find ${prefix} -name "*" > ${prefix}/user/info/${pack}-pre-install
+                find ${prefix} -name "*" > ${prefix}/user/info/${pack}-pre-install # Find files that exist, to diff for uninstalling
                 info "Installing ${pack}"
-                cd ${prefix}/user/cache/
-                bash ${package_dir}/${pack}
-                if [ $? = "0" ]; then
-                    find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install # Find which files exist, to help with uninstalling
-                    touch ${prefix}/user/info/${pack}-installed
+                cd ${prefix}/user/cache/ # Go to cache directory
+                bash ${package_dir}/${pack} # Execute buildscript
+                if [ $? = "0" ]; then # If package installed successfully
+                    find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install # Find files that exist now
+                    touch ${prefix}/user/info/${pack}-installed # Mark package as installed
                     success "${pack} installed!"
-                else
-                    error "${pack} failed to install"
+                else error "${pack} failed to install"
                 fi
-            else
-                warn "Skipping ${pack}"
+            else warn "Skipping ${pack}"
             fi
         else warn "${pack} already installed, skipping"
         fi
     done
 }
 
+# This function diffs the file list to see which files were created, then removes those files
 function uninstall() {
     chkroot
     export package_dir="${prefix}/user/main/"
-    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/uninstall//g')
+    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/uninstall//g') # Again, setting arguments
     for pack in ${args}; do
         ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
         ls ${prefix}/user/info/${pack}-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
         prompt "Review files to remove?"
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-          diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | less
+          diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | less # Diff files before and after installation, and show to user
         fi
         prompt "Uninstall ${pack}?"
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | xargs rm -rf
-            rm ${prefix}/user/info/${pack}-installed ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install > /dev/null 2>&1
+            diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | xargs rm -rf # Delete files that were installed
+            rm ${prefix}/user/info/${pack}-installed ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install > /dev/null 2>&1 # Unmark package as installed
             success "${pack} uninstalled!"
         fi
     done
 }
 
+# This function searches in every file for the query
 function query() {
-    for i in `grep -li "\# name: $2" ${package_dir}/*`; do
+    for i in `grep -li "\# name: $2" ${package_dir}/*`; do # Loop over every package that matches query
         echo Name: `grep -i "^\# name" $i | sed "s/^..name..//"`
         echo Package name: `grep -i "^\# pack" $i | sed "s/^..pack..//"`
         echo Description: `grep -i "^\# desc" $i | sed "s/^..desc..//"`
@@ -182,31 +197,35 @@ function query() {
     done 
 }
 
+# This function updates buildscripts
 function update() {
     chkroot
-    rm -rf ${prefix}/user/main
-    mkdir ${prefix}/user/main
-    for i in $(cat ${prefix}/repos); do
+    rm -rf ${prefix}/user/main # Remove all buildscripts
+    mkdir ${prefix}/user/main # Create buildscript directory
+    for i in $(cat ${prefix}/repos); do # Regenerate buildscripts from repo list
       git clone $i ${prefix}/user/main/repo
       mv ${prefix}/user/main/repo/packages/* ${prefix}/user/main/
       rm -rf ${prefix}/user/main/repo/
     done
 }
 
+# This function just runs uninstall and reinstall
 function reinstall() {
     uninstall $@
     install $@
 }
 
+# This checks if user wants a local or global install
 for i in $@; do
     case $i in
-      '--local') 
+      '--local')
 	prefix=$HOME/.shade ;;
       '--global') 
 	prefix=/opt/shade ;;
     esac
 done
 
+# This checks arguments to see what the user wants to run
 case "$1" in
       '') help ;;
       'help') help ;;
