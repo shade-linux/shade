@@ -49,10 +49,6 @@ function fatal_error() {
     exit 1
 }
 
-if [[ $OSTYPE != *linux* ]]; then
-    warn "Shade only supports Linux. Issues for operating systems other than Linux will most likely be ignored"
-fi
-
 function chkroot() {
     if [[ $EUID -ne 0 ]]; then
         fatal_error "Shade must be run as a root user"
@@ -72,6 +68,10 @@ function prompt() {
     read -rp "$1 [${green}Yes${normal}/${red}No${normal}] " response
 }
 
+if [[ $OSTYPE != *linux* ]] && [[ $OSTYPE != *darwin* ]]; then
+    warn "Shade only supports Linux, with partial support for macOS. Issues for operating systems other than Linux will most likely be ignored"
+fi
+
 function help() {
     cat <<EOF
 Usage: shade [OPTION] [...]
@@ -89,7 +89,8 @@ EOF
 }
 
 function install() {
-    for pack in ${@:2:9999}; do
+    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g')
+    for pack in ${args}; do
         ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1
         if [ $? != "0" ]; then
             ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
@@ -124,8 +125,8 @@ function install() {
 }
 
 function uninstall() {
-    chkroot
-    for pack in ${@:2:9999}; do
+    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g')
+    for pack in ${args}; do
         ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
         ls ${prefix}/user/info/${pack}-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
         prompt "Review files to remove?"
@@ -153,7 +154,6 @@ function query() {
 }
 
 function update() {
-    chkroot # Checks if you're root
     success "Beginning update..."
     cd ${prefix}/user/main/
     if ! git pull; then # Checks if git pull showed an error
@@ -164,10 +164,18 @@ function update() {
 }
 
 function reinstall() {
-    chkroot
     uninstall $@
     install $@
 }
+
+for i in $@; do
+    case $i in
+      '--local') 
+	prefix=~/.shade ;;
+      '--global') 
+	prefix=/opt/shade ;;
+    esac
+done
 
 case "$1" in
       '') help ;;
