@@ -137,7 +137,17 @@ function install() {
         ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1 # Check if package is installed
         if [ $? != "0" ]; then
             ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!" # Check if package exists
-            deps=$(parse "deps") # Check dependencies
+            export deps=$(parse "deps") # Check dependencies
+            export source=$(parse "source") # Get source of package
+            export version=$(parse "ver") # Get version
+            if [[ $version =~ git ]]; then
+                export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/\.git//' | sed 's/http.*://')
+            elif [[ $version =~ [0-9] ]]; then
+                export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
+                echo $version > ${prefix}/user/info/${pack}-version
+            elif [[ $version =~ master ]]; then
+                export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\..*$//')
+            fi
             info "Dependencies: $deps" # Show dependencies to user
             info "Please make sure these are installed"
             prompt "Open ${pack} buildscript?" # Prompt user to open package buildscript
@@ -154,6 +164,8 @@ function install() {
                 bash ${package_dir}/${pack} # Execute buildscript
                 if [ $? = "0" ]; then # If package installed successfully
                     find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install # Find files that exist now
+                    cd ${prefix}/user/cache/${folder}
+                    git rev-parse HEAD > ${prefix}/user/info/${pack}-version
                     touch ${prefix}/user/info/${pack}-installed # Mark package as installed
                     success "${pack} installed!"
                 else error "${pack} failed to install"
@@ -180,11 +192,40 @@ function uninstall() {
         prompt "Uninstall ${pack}?"
         response=${response,,}
         if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | xargs rm -rf # Delete files that were installed
+            comm -13 ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | xargs rm -rf # Delete files that were installed
             rm ${prefix}/user/info/${pack}-installed ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install > /dev/null 2>&1 # Unmark package as installed
             success "${pack} uninstalled!"
         fi
     done
+}
+
+function upgrade() {
+  #set -x
+  inst=$(ls ${prefix}/user/info/*-installed)
+  export package_dir="${prefix}/user/main/" # You need to export this variable again
+  for i in $inst; do
+    pack=$(echo $i | sed 's/-.*//g' | sed 's/\/.*\///g')
+    export version=$(parse "ver") # Get version
+    if [[ $version =~ git ]]; then
+        export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/\.git//' | sed 's/http.*://')
+        export folder=$(echo ${prefix}/user/cache/${folder})
+        rm -rf $folder
+        git clone --depth=1 $(parse "source") $folder
+        cd $folder
+        if [[ $(git rev-parse HEAD) != $(cat ${prefix}/user/info/${pack}-version) ]]; then
+            bash ${package}/${pack}
+            find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install
+            cd ${prefix}/user/cache/${folder}
+            git rev-parse HEAD > ${prefix}/user/info/${pack}-version
+        fi
+    elif [[ $version =~ [0-9] ]]; then
+        export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
+        export folder=$(echo ${prefix}/user/cache/${folder})
+    elif [[ $version =~ master ]]; then
+        export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\..*$//')
+        export folder=$(echo ${prefix}/user/cache/${folder})
+    fi
+  done
 }
 
 # This function searches in every file for the query
@@ -222,6 +263,14 @@ function list() {
     ls ${prefix}/user/info/*-installed | sed 's/-.*//g' | sed 's/\/.*\///g'
 }
 
+function chonky-packages() {
+    export package_dir="${prefix}/user/main/"
+    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/chonky-packages//g') # Again, setting arguments
+    for pack in ${args}; do
+        comm -13 ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | xargs du -ch | grep total # Find total size of files installed
+    done
+}
+
 # This checks if user wants a local or global install
 for i in $@; do
     case $i in
@@ -235,14 +284,16 @@ done
 # This checks arguments to see what the user wants to run
 case "$1" in
       '') help ;;
-      'help') help ;;
-      'init') init ;;
-      'setup') setup ;;
-      'install') install $@ ;;
-      'uninstall') uninstall $@ ;;
-      'query') query $@ ;;
-      'update') update ;;
-      'reinstall') reinstall $@ ;;
-      'list') list ;;
-      '*') error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
+      help) help ;;
+      init) init ;;
+      setup) setup ;;
+      install) install $@ ;;
+      uninstall) uninstall $@ ;;
+      query) query $@ ;;
+      update) update ;;
+      upgrade) upgrade ;;
+      reinstall) reinstall $@ ;;
+      list) list ;;
+      chonky-packages) chonky-packages $@ ;;
+      *) error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
 esac
