@@ -213,7 +213,7 @@ function upgrade() {
         git clone --depth=1 $(parse "source") $folder
         cd $folder
         if [[ $(git rev-parse HEAD) != $(cat ${prefix}/user/info/${pack}-version) ]]; then
-            bash ${package}/${pack}
+            bash ${package_dir}/${pack}
             find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install
             cd ${prefix}/user/cache/${folder}
             git rev-parse HEAD > ${prefix}/user/info/${pack}-version
