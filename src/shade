@@ -213,11 +213,7 @@ function upgrade() {
         git clone --depth=1 $(parse "source") $folder
         cd $folder
         if [[ $(git rev-parse HEAD) != $(cat ${prefix}/user/info/${pack}-version) ]]; then
-            export source=$(parse "source") # Get source of package
-            bash ${package_dir}/${pack}
-            find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install
-            cd ${prefix}/user/cache/${folder}
-            git rev-parse HEAD > ${prefix}/user/info/${pack}-version
+            info "Upgrade this package with shade reinstall ${pack}"
         fi
     elif [[ $version =~ [0-9] ]]; then
         export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
