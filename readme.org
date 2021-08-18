@@ -1,0 +1,45 @@
+* Shade package manager
+
+Shade is a simple package manager, mostly for Linux, that is written in shell.
+
+* Table of contents
+#+begin_quote
+- [[Installation]]
+- [[Usage]]
+- [[Why another package manager?]]
+- [[Contributing and support]]
+#+end_quote
+
+** Installation
+
+- Download and move =src/shade= to a directory in your path.
+- Run =shade init --local= if you want to use shade just for yourself, or =shade init --global= if you want package installed with shade to be available for everyone
+- Add =~/.shade/bin= (if you installed locally) and =/opt/shade/bin= (if you installed globally) to your =$PATH=
+
+** Usage
+
+Shade has quite a few commands available for use.
+
+- =help=: Shows a message describing the different commands
+- =init=: Initializes the directories for shade to work
+- =install=: Installs the specified packages
+- =uninstall=: Uninstalls the specified packages
+- =reinstall=: Reinstalls the specified packages
+- =query=: Searches for packages matching query
+- =list=: Lists installed packages
+- =update=: Updates buildscripts
+
+
+** Why another package manager?
+
+Shade has a few advantages over other packages managers
+
+- Shade buildscripts are written in shell, so you don't need shade to build packages, making buildscripts extremely flexible
+- Shade is written in shell, so it is portable and can run on macOS, BSD, and even WSL (although without support)
+- Shade is also easily extensible, as you can edit it without needing to recompile
+- Shade is fairly fast, since it doesn't do too many things
+
+** Contributing and support
+
+If you have a question, you can open an issue, join our [[https://matrix.to/#/!QFHcZFQVmhZjDjYMYR:matrix.org?via=matrix.org][Matrix room]], or ask in Github Discussions.
+If you want to contribute, feel free to fork this repo and create a pull request.

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Yes, this code is extremely messy. It might be some of the hackiest code I've ever written, and I apologize if it makes your eyes bleed
 
 # This sets the default prefix and package directory. This can be changed later with --local
 export prefix="/opt/shade"
@@ -33,27 +32,27 @@ export bold_white="$bold$white" # Bold white
 
 # Bold green message for success
 function success() {
-    echo "${bold_green}${1}${normal}"
+    echo "--> ${bold_green}${1}${normal}"
 }
 
 # Blue message for information
 function info() {
-    echo "${blue}${1}${normal}"
+    echo "--> ${blue}${1}${normal}"
 }
 
 # Bold yellow message for warnings
 function warn() {
-    echo "${bold_yellow}${1}${normal}"
+    echo "--> ${bold_yellow}${1}${normal}"
 }
 
 # Bold red message for errors
 function error() {
-    echo "${bold_red}${1}${normal}"
+    echo ">&2 --> ${bold_red}${1}${normal}"
 }
 
 # Bold red message and quiting for errors
 function fatal_error() {
-    echo "${bold_red}${1}${normal}"
+    echo ">&2 --> ${bold_red}${1}${normal}"
     exit 1
 }
 
@@ -78,7 +77,7 @@ function parse() {
 
 # Colored yes/no prompt
 function prompt() {
-    read -rp "$1 [${green}Yes${normal}/${red}No${normal}] " response
+    read -rp "--> $1 [${green}Yes${normal}/${red}No${normal}] " response
 }
 
 # Check if you are running Linux, and if not, spits out a warning message
@@ -158,16 +157,20 @@ function install() {
             prompt "Install ${pack}?" # Prompt user if theyy want to install
             response=${response,,}
             if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
+                start_time=`date +%s`
                 find ${prefix} -name "*" > ${prefix}/user/info/${pack}-pre-install # Find files that exist, to diff for uninstalling
                 info "Installing ${pack}"
                 cd ${prefix}/user/cache/ # Go to cache directory
                 bash ${package_dir}/${pack} # Execute buildscript
                 if [ $? = "0" ]; then # If package installed successfully
                     find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install # Find files that exist now
-                    cd ${prefix}/user/cache/${folder}
-                    git rev-parse HEAD > ${prefix}/user/info/${pack}-version
+                    if [[ $version =~ git ]]; then
+                      cd ${prefix}/user/cache/${folder}
+                      git rev-parse HEAD > ${prefix}/user/info/${pack}-version
+                    fi
                     touch ${prefix}/user/info/${pack}-installed # Mark package as installed
-                    success "${pack} installed!"
+                    end_time=`date +%s`
+                    success "${pack} installed in $(((end_time-start_time)/60)) minutes"
                 else error "${pack} failed to install"
                 fi
             else warn "Skipping ${pack}"
@@ -203,6 +206,7 @@ function upgrade() {
   #set -x
   inst=$(ls ${prefix}/user/info/*-installed)
   export package_dir="${prefix}/user/main/" # You need to export this variable again
+  export has_update=0
   for i in $inst; do
     pack=$(echo $i | sed 's/-.*//g' | sed 's/\/.*\///g')
     export version=$(parse "ver") # Get version
@@ -210,10 +214,15 @@ function upgrade() {
         export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/\.git//' | sed 's/http.*://')
         export folder=$(echo ${prefix}/user/cache/${folder})
         rm -rf $folder
-        git clone --depth=1 $(parse "source") $folder
+        echo ''
+        echo "Checking for updates for ${pack}, please wait"
+        git clone --depth=1 $(parse "source") $folder > /dev/null 2>&1
         cd $folder
         if [[ $(git rev-parse HEAD) != $(cat ${prefix}/user/info/${pack}-version) ]]; then
-            info "Upgrade this package with shade reinstall ${pack}"
+            success "${pack} has updates available. Update with shade reinstall ${pack}"
+            export has_update=$(( hasupdate+1 ))
+        else
+            info "${pack} has no updates available"
         fi
     elif [[ $version =~ [0-9] ]]; then
         export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
@@ -223,17 +232,12 @@ function upgrade() {
         export folder=$(echo ${prefix}/user/cache/${folder})
     fi
   done
-}
-
-# This function searches in every file for the query
-function query() {
-    for i in `grep -li "\# name: $2" ${package_dir}/*`; do # Loop over every package that matches query
-        echo Name: `grep -i "^\# name" $i | sed "s/^..name..//"`
-        echo Package name: `grep -i "^\# pack" $i | sed "s/^..pack..//"`
-        echo Description: `grep -i "^\# desc" $i | sed "s/^..desc..//"`
-        echo Dependencies: `grep -i "^\# deps" $i | sed "s/^..deps..//"`
-        echo Version: `grep -i "^\# ver" $i | sed "s/^..ver..//"`
-    done 
+  echo
+  if [[ ${has_update} == 1 ]]; then
+      success "${has_update} package has updates available"
+  else
+      success "${has_update} packages have update available"
+  fi
 }
 
 # This function updates buildscripts
@@ -246,6 +250,17 @@ function update() {
       mv ${prefix}/user/main/repo/packages/* ${prefix}/user/main/
       rm -rf ${prefix}/user/main/repo/
     done
+}
+
+# This function searches in every file for the query
+function query() {
+    for i in `grep -li "\# name: $2" ${package_dir}/*`; do # Loop over every package that matches query
+        echo Name: `grep -i "^\# name" $i | sed "s/^..name..//"`
+        echo Package name: `grep -i "^\# pack" $i | sed "s/^..pack..//"`
+        echo Description: `grep -i "^\# desc" $i | sed "s/^..desc..//"`
+        echo Dependencies: `grep -i "^\# deps" $i | sed "s/^..deps..//"`
+        echo Version: `grep -i "^\# ver" $i | sed "s/^..ver..//"`
+    done 
 }
 
 # This function just runs uninstall and reinstall
