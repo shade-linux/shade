@@ -1,6 +1,0 @@
-name: Shell Linter
-  with:
-    # Execute lint check on a specific file or folder.
-    path: src/shade
-    # Specify minimum severity of errors to consider.
-    severity: # optional, default is style
