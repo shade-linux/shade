@@ -1,7 +1,4 @@
-- name: Shell Linter
-  # You may pin to the exact commit or the version.
-  # uses: azohra/shell-linter@ad879393449ead286ce03accee8475a4cec1358d
-  uses: azohra/shell-linter@v0.5.0
+name: Shell Linter
   with:
     # Execute lint check on a specific file or folder.
     path: src/shade
