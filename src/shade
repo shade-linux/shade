@@ -131,7 +131,7 @@ function init() {
 function install() {
     chkroot
     export package_dir="${prefix}/user/main/" # You need to export this variable again
-    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g') # Set arguments to the current argument list, but without --local, --global, and install arguments
+    args=$(echo ${@} | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g') # Set arguments to the current argument list, but without --local, --global, and install arguments
     for pack in ${args}; do # Repeat this code until all packages are installed
         ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1 # Check if package is installed
         if [ $? != "0" ]; then
@@ -184,7 +184,7 @@ function install() {
 function uninstall() {
     chkroot
     export package_dir="${prefix}/user/main/"
-    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/uninstall//g') # Again, setting arguments
+    args=$(echo ${@} | sed 's/--local//g' | sed 's/--global//g' | sed 's/uninstall//g') # Again, setting arguments
     for pack in ${args}; do
         ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
         ls ${prefix}/user/info/${pack}-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
@@ -265,8 +265,8 @@ function query() {
 
 # This function just runs uninstall and reinstall
 function reinstall() {
-    uninstall $@
-    install $@
+    uninstall ${@}
+    install ${@}
 }
 
 # This function lists installed packages
@@ -277,15 +277,15 @@ function list() {
 
 function chonky-packages() {
     export package_dir="${prefix}/user/main/"
-    args=$(echo $@ | sed 's/--local//g' | sed 's/--global//g' | sed 's/chonky-packages//g') # Again, setting arguments
+    args=$(echo ${@} | sed 's/--local//g' | sed 's/--global//g' | sed 's/chonky-packages//g') # Again, setting arguments
     for pack in ${args}; do
         comm -13 ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | xargs du -ch | grep total # Find total size of files installed
     done
 }
 
 # This checks if user wants a local or global install
-for i in $@; do
-    case $i in
+for i in ${@}; do
+    case ${i} in
       '--local')
 	prefix=$HOME/.shade ;;
       '--global') 
@@ -299,13 +299,13 @@ case "$1" in
       help) help ;;
       init) init ;;
       setup) setup ;;
-      install) install $@ ;;
-      uninstall) uninstall $@ ;;
-      query) query $@ ;;
+      install) install ${@} ;;
+      uninstall) uninstall ${@} ;;
+      query) query ${@} ;;
       update) update ;;
       upgrade) upgrade ;;
-      reinstall) reinstall $@ ;;
+      reinstall) reinstall ${@} ;;
       list) list ;;
-      chonky-packages) chonky-packages $@ ;;
+      chonky-packages) chonky-packages ${@} ;;
       *) error "$0: invalid option -- '$1'. Try '$0 help' for more information" ;;
 esac
