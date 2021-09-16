@@ -8,7 +8,7 @@ export pager=cat
 
 
 export normal=$'\e[0m' 
-bold=$(tput bold) 
+bold="$(tput bold)" 
 export bold
 
 
