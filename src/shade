@@ -1,91 +1,92 @@
 #!/usr/bin/env bash
 
-# This sets the default prefix and package directory. This can be changed later with --local
+
 export prefix="/opt/shade"
-export package_dir="${prefix}/user/main/"
-# Pager will be able to be specified in a config file in a future update
+export package_dir="${prefix}"/user/main/
+
 export pager=cat
 
-# Font coloring
-export normal=$'\e[0m' # Normal text
-export bold=$(tput bold) # Bold text
 
-# Normal colours
-export black=$(tput setaf 0) # Black
-export red=$(tput setaf 1) # Red
-export green=$(tput setaf 2) # Green
-export yellow=$(tput setaf 3) # Yellow
-export blue=$(tput setaf 4) # Blue
-export magenta=$(tput setaf 5) # Magenta
-export cyan=$(tput setaf 6) # Cyan
-export white=$(tput setaf 7) # White
+export normal=$'\e[0m' 
+bold=$(tput bold) 
+export bold
 
-# Bold colours
-export bold_black="$bold$black" # Bold black
-export bold_red="$bold$red" # Bold red
-export bold_green="$bold$green" # Bold green
-export bold_yellow="$bold$yellow" # Bold yellow
-export bold_blue="$bold$blue" # Bold blue
-export bold_magenta="$bold$magenta" # Bold magenta
-export bold_cyan="$bold$cyan" # Bold cyan
-export bold_white="$bold$white" # Bold white
 
-# Bold green message for success
+red="$(tput setaf 1)" 
+export red
+green="$(tput setaf 2)" 
+export green
+yellow="$(tput setaf 3)" 
+export yellow
+blue="$(tput setaf 4)" 
+export blue
+
+
+bold_red="$bold$red" 
+export bold_red
+bold_green="$bold$green" 
+export bold_green
+bold_yellow="$bold$yellow" 
+export bold_yellow
+bold_blue="$bold$blue" 
+export bold_blue
+
+
 function success() {
     echo "--> ${bold_green}${1}${normal}"
 }
 
-# Blue message for information
+
 function info() {
     echo "--> ${blue}${1}${normal}"
 }
 
-# Bold yellow message for warnings
+
 function warn() {
     echo "--> ${bold_yellow}${1}${normal}"
 }
 
-# Bold red message for errors
+
 function error() {
-    echo ">&2 --> ${bold_red}${1}${normal}"
+    echo "--> ${bold_red}${1}${normal}"
 }
 
-# Bold red message and quiting for errors
+
 function fatal_error() {
-    echo ">&2 --> ${bold_red}${1}${normal}"
+    echo "--> ${bold_red}${1}${normal}"
     exit 1
 }
 
-# Checks to see if you are running as root only if you want to install globally
+
 function chkroot() {
-    if [[ $prefix == /opt/shade ]]; then
-        if [[ $EUID -ne 0 ]]; then
+    if [[ "${prefix}" == /opt/shade ]]; then
+        if [[ "${EUID}" -ne 0 ]]; then
             fatal_error "Shade must be run as a root user"
         fi
     fi
 }
 
-# Searches for metadata inside a buildscript. Metadata always starts with a #
+
 function getinfo() {
-    cat ${package_dir}/${pack} | grep -i "^\# ${1}"
+    grep -i "^\# ${1}" "${package_dir}"/"${pack}"
 }
 
-# Seperate information from identifier in buildscripts
+
 function parse() {
-  getinfo $1 | sed "s/^..$1..//"
+  getinfo "${1}" | sed "s/^..$1..//"
 }
 
-# Colored yes/no prompt
+
 function prompt() {
     read -rp "--> $1 [${green}Yes${normal}/${red}No${normal}] " response
 }
 
-# Check if you are running Linux, and if not, spits out a warning message
+
 if [[ $OSTYPE != *linux* ]]; then
     warn "Shade officially supports only Linux. Other operating systems may run shade, but issues may arise."
 fi
 
-# Help function to print out usage
+
 function help() {
     cat <<EOF
 Usage: shade [OPTION] [--local/--global] [...]
@@ -96,7 +97,6 @@ Options:
     install       Install a package
     reinstall     Reinstall packages
     uninstall     Remove a package
-    query         Query packages
     list          List all installed packages
     update        Update buildscripts
 Flags:
@@ -105,9 +105,10 @@ Flags:
 EOF
 }
 
-# This function creates directories, clones repositories to the needed locations, then moves the buildscripts to ${prefix}/user/main
+
 function init() {
   info "Beginning initialization"
+  mkdir ${prefix}
   mkdir -p ${prefix}/user/
   mkdir -p ${prefix}/user/main
   mkdir -p ${prefix}/user/info
@@ -117,59 +118,63 @@ function init() {
   mkdir -p ${prefix}/libexec
   mkdir -p ${prefix}/sbin
   mkdir -p ${prefix}/share
-  echo 'https://github.com/shade-linux/buildscripts' >> ${prefix}/repos
-  for i in $(cat ${prefix}/repos); do
-    git clone $i ${prefix}/user/main/repo
-    mv ${prefix}/user/main/repo/packages/* ${prefix}/user/main/
-    rm -rf ${prefix}/user/main/repo/
- done
- success "Initialization done"
- info "Add your own repos to ${prefix}/repos and run shade update [--local] to clone them"
+  echo 'https://github.com/shade-linux/buildscripts' >> "${prefix}"/repos
+  while read i; do
+    git clone "${i}" "${prefix}"/user/main/repo 2>> /tmp/shade-log
+    mv "${prefix}"/user/main/repo/packages/* "${prefix}"/user/main/ 2>> /tmp/shade-log
+    rm -rf "${prefix}"/user/main/repo/ 2>> /tmp/shade-log
+  done < "${prefix}"/repos
+  success "Initialization done"
+  info "Add your own repos to ${prefix}/repos and run shade update [--local] to clone them"
 }
 
-# This function installs packages. It's not that complicated
+
 function install() {
     chkroot
-    export package_dir="${prefix}/user/main/" # You need to export this variable again
-    args=$(echo "${@}" | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g') # Set arguments to the current argument list, but without --local, --global, and install arguments
-    for pack in ${args}; do # Repeat this code until all packages are installed
-        ls ${prefix}/user/info/${pack}-installed > /dev/null 2>&1 # Check if package is installed
-        if [ $? != "0" ]; then
-            ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!" # Check if package exists
-            export deps=$(parse "deps") # Check dependencies
-            export source=$(parse "source") # Get source of package
-            export version=$(parse "ver") # Get version
+    export package_dir="${prefix}"/user/main/
+    args=$(echo "${@}" | sed 's/--local//g' | sed 's/--global//g' | sed 's/install//g') 
+    for pack in ${args}; do 
+        if ! ls "${prefix}"/user/info/"${pack}"-installed >/dev/null 2>&1 ; then
+            ls "${package_dir}"/"${pack}" >/dev/null 2>&1 || error "Package \"${pack}\" does not exist!" 
+            deps=$(parse "deps") 
+            export deps
+            source=$(parse "source") 
+            export source
+            version=$(parse "ver") 
+            export version
             if [[ $version =~ git ]]; then
-                export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/\.git//' | sed 's/http.*://')
+                folder=$(parse "source" | sed 's/\/.*\///' | sed 's/\.git//' | sed 's/http.*://')
+                export folder
             elif [[ $version =~ [0-9] ]]; then
-                export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
-                echo $version > ${prefix}/user/info/${pack}-version
+                folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
+                export folder
+                echo "${version}" > "${prefix}"/user/info/"${pack}"-version
             elif [[ $version =~ master ]]; then
-                export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\..*$//')
+                folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\..*$//')
+                export folder
             fi
-            info "Dependencies: $deps" # Show dependencies to user
+            info "Dependencies: $deps" 
             info "Please make sure these are installed"
-            prompt "Open ${pack} buildscript?" # Prompt user to open package buildscript
-            response=${response,,} # make response lowercase
-            if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then # Check if the response is yes or empty
-                ${pager} ${package_dir}/${pack} # Read the buildscript with the pager
+            prompt "Open ${pack} buildscript?" 
+            response=${response,,} 
+            if [[ "${response}" =~ ^(yes|y| ) ]] || [[ -z "${response}" ]]; then 
+                "${pager}" "${package_dir}"/"${pack}"
             fi
-            prompt "Install ${pack}?" # Prompt user if theyy want to install
-            response=${response,,}
+            prompt "Install ${pack}?" 
+            response="${response,,}"
             if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-                start_time=`date +%s`
-                find ${prefix} -name "*" > ${prefix}/user/info/${pack}-pre-install # Find files that exist, to diff for uninstalling
+                start_time=$(date +%s)
+                find "${prefix}" -name "*" > "${prefix}"/user/info/"${pack}"-pre-install 
                 info "Installing ${pack}"
-                cd ${prefix}/user/cache/ # Go to cache directory
-                bash ${package_dir}/${pack} # Execute buildscript
-                if [ $? = "0" ]; then # If package installed successfully
-                    find ${prefix} -name "*" > ${prefix}/user/info/${pack}-post-install # Find files that exist now
-                    if [[ $version =~ git ]]; then
-                      cd ${prefix}/user/cache/${folder}
-                      git rev-parse HEAD > ${prefix}/user/info/${pack}-version
+                cd "${prefix}"/user/cache/ || exit
+                if bash "${package_dir}"/"${pack}" ; then
+                    find "${prefix}" -name "*" > "${prefix}"/user/info/"${pack}"-post-install 
+                    if [[ "${version}" =~ git ]]; then
+                      cd "${prefix}"/user/cache/"${folder}" || exit
+                      git rev-parse HEAD > "${prefix}"/user/info/"${pack}"-version
                     fi
-                    touch ${prefix}/user/info/${pack}-installed # Mark package as installed
-                    end_time=`date +%s`
+                    touch "${prefix}"/user/info/"${pack}"-installed 
+                    end_time=$(date +%s)
                     success "${pack} installed in $(((end_time-start_time)/60)) minutes"
                 else error "${pack} failed to install"
                 fi
@@ -180,110 +185,107 @@ function install() {
     done
 }
 
-# This function diffs the file list to see which files were created, then removes those files
+
 function uninstall() {
     chkroot
-    export package_dir="${prefix}/user/main/"
-    args=$(echo "${@}" | sed 's/--local//g' | sed 's/--global//g' | sed 's/uninstall//g') # Again, setting arguments
+    export package_dir="{prefix}"/user/main/
+    args=$(echo "${@}" | sed 's/--local//g' | sed 's/--global//g' | sed 's/uninstall//g') 
     for pack in ${args}; do
-        ls ${package_dir}/${pack} >/dev/null 2>&1 || error "Package ${pack} does not exist!"
-        ls ${prefix}/user/info/${pack}-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
+        ls "${package_dir}"/"${pack}" >/dev/null 2>&1 || error "Package \"${pack}\" does not exist!"
+        ls "${prefix}"/user/info/"${pack}"-installed >/dev/null 2>&1 || error "Package ${pack} not installed!"
         prompt "Review files to remove?"
-        if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-          diff ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | tail -n +2 | cut -c 3- | less # Diff files before and after installation, and show to user
+        if [[ "${response}" =~ ^(yes|y| ) ]] || [[ -z "${response}" ]]; then
+          diff "${prefix}"/user/info/"${pack}"-pre-install "${prefix}"/user/info/"${pack}"-post-install | tail -n +2 | cut -c 3- | less 
         fi
         prompt "Uninstall ${pack}?"
         response=${response,,}
-        if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
-            comm -13 ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | xargs rm -rf # Delete files that were installed
-            rm ${prefix}/user/info/${pack}-installed ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install > /dev/null 2>&1 # Unmark package as installed
+        if [[ "${response}" =~ ^(yes|y| ) ]] || [[ -z "${response}" ]]; then
+            comm -13 "${prefix}"/user/info/"${pack}"-pre-install "${prefix}"/user/info/"${pack}"-post-install | xargs rm -rf 
+            rm "${prefix}"/user/info/"${pack}"-installed "${prefix}"/user/info/"${pack}"-pre-install "${prefix}"/user/info/"${pack}"-post-install > /dev/null 2>&1 
             success "${pack} uninstalled!"
         fi
     done
 }
 
 function upgrade() {
-  #set -x
-  inst=$(ls ${prefix}/user/info/*-installed)
-  export package_dir="${prefix}/user/main/" # You need to export this variable again
+  
+  inst=$(ls "${prefix}"/user/info/*-installed)
+  export package_dir="${prefix}"/user/main/
   export has_update=0
   for i in $inst; do
-    pack=$(echo $i | sed 's/-.*//g' | sed 's/\/.*\///g')
-    export version=$(parse "ver") # Get version
+    pack=$(echo "${i}" | sed 's/-.*//g' | sed 's/\/.*\///g')
+    version=$(parse "ver") 
+    export
     if [[ $version =~ git ]]; then
-        export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/\.git//' | sed 's/http.*://')
-        export folder=$(echo ${prefix}/user/cache/${folder})
-        rm -rf $folder
+        folder=$(parse "source" | sed 's/\/.*\///' | sed 's/\.git//' | sed 's/http.*://')
+        export folder
+        folder=$("${prefix}"/user/cache/"${folder}")
+        export folder
+        rm -rf "${folder}"
         echo ''
         echo "Checking for updates for ${pack}, please wait"
-        git clone --depth=1 $(parse "source") $folder > /dev/null 2>&1
-        cd $folder
-        if [[ $(git rev-parse HEAD) != $(cat ${prefix}/user/info/${pack}-version) ]]; then
+        git clone --depth=1 "$(parse source)" "${folder}" > /dev/null 2>&1
+        cd "${folder}" || exit
+        if [[ $(git rev-parse HEAD) != $(cat "${prefix}"/user/info/"${pack}"-version) ]]; then
             success "${pack} has updates available. Update with shade reinstall ${pack}"
-            export has_update=$(( hasupdate+1 ))
+            export has_update=$(( has_update+1 ))
         else
             info "${pack} has no updates available"
         fi
     elif [[ $version =~ [0-9] ]]; then
-        export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
-        export folder=$(echo ${prefix}/user/cache/${folder})
+        folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\-.*$//')
+        export folder
+        folder=$("${prefix}"/user/cache/"${folder}")
+        export folder
     elif [[ $version =~ master ]]; then
-        export folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\..*$//')
-        export folder=$(echo ${prefix}/user/cache/${folder})
+        folder=$(parse "source" | sed 's/\/.*\///' | sed 's/http.*://' | sed 's/\..*$//')
+        export folder
+        folder=$("${prefix}"/user/cache/"${folder}")
+        export folder
     fi
   done
   echo
-  if [[ ${has_update} == 1 ]]; then
+  if [[ "${has_update}" == 1 ]]; then
       success "${has_update} package has updates available"
   else
-      success "${has_update} packages have update available"
+      success "${has_update} packages have updates available"
   fi
 }
 
-# This function updates buildscripts
+
 function update() {
     chkroot
-    rm -rf ${prefix}/user/main # Remove all buildscripts
-    mkdir ${prefix}/user/main # Create buildscript directory
-    for i in $(cat ${prefix}/repos); do # Regenerate buildscripts from repo list
-      git clone $i ${prefix}/user/main/repo
-      mv ${prefix}/user/main/repo/packages/* ${prefix}/user/main/
-      rm -rf ${prefix}/user/main/repo/
-    done
+    rm -rf "${prefix}"/user/main 
+    mkdir "${prefix}"/user/main 
+    while read i ; do 
+      git clone "${i}" "${prefix}"/user/main/repo
+      mv "${prefix}"/user/main/repo/packages/* "${prefix}"/user/main/
+      rm -rf "${prefix}"/user/main/repo/
+    done < "${prefix}"/repos
 }
 
-# This function searches in every file for the query
-function query() {
-    for i in `grep -li "\# name: $2" ${package_dir}/*`; do # Loop over every package that matches query
-        echo Name: `grep -i "^\# name" $i | sed "s/^..name..//"`
-        echo Package name: `grep -i "^\# pack" $i | sed "s/^..pack..//"`
-        echo Description: `grep -i "^\# desc" $i | sed "s/^..desc..//"`
-        echo Dependencies: `grep -i "^\# deps" $i | sed "s/^..deps..//"`
-        echo Version: `grep -i "^\# ver" $i | sed "s/^..ver..//"`
-    done 
-}
 
-# This function just runs uninstall and reinstall
 function reinstall() {
     uninstall "${@}"
     install "${@}"
 }
 
-# This function lists installed packages
+
 function list() {
     info "Installed packages:"
-    ls ${prefix}/user/info/*-installed | sed 's/-.*//g' | sed 's/\/.*\///g'
+    find "${prefix}"/user/info/*-installed 2>/tmp/shade-log | sed 's/\/.*\///g' | sed 's/-.*//g'
 }
 
 function chonky-packages() {
-    export package_dir="${prefix}/user/main/"
-    args=$(echo "${@}" | sed 's/--local//g' | sed 's/--global//g' | sed 's/chonky-packages//g') # Again, setting arguments
+    export package_dir="${prefix}"/user/main/
+    args=$(echo "${@}" | sed 's/--local//g' | sed 's/--global//g' | sed 's/chonky-packages//g') 
     for pack in ${args}; do
-        comm -13 ${prefix}/user/info/${pack}-pre-install ${prefix}/user/info/${pack}-post-install | xargs du -ch | grep total # Find total size of files installed
+        comm -13 "${prefix}"/user/info/"${pack}"-pre-install "${prefix}"/user/info/"${pack}"-post-install > "${prefix}"/user/info/"${pack}"-size
+        cat "${prefix}"/user/info/"${pack}"-size | xargs du -ch | grep -i ^total
     done
 }
 
-# This checks if user wants a local or global install
+
 for i in "${@}"; do
     case "${i}" in
       '--local')
@@ -293,7 +295,7 @@ for i in "${@}"; do
     esac
 done
 
-# This checks arguments to see what the user wants to run
+
 case "$1" in
       '') help ;;
       help) help ;;
@@ -301,7 +303,6 @@ case "$1" in
       setup) setup ;;
       install) install "${@}" ;;
       uninstall) uninstall "${@}" ;;
-      query) query "${@}" ;;
       update) update ;;
       upgrade) upgrade ;;
       reinstall) reinstall "${@}" ;;
